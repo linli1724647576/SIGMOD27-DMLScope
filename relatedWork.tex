@@ -1,39 +1,37 @@
 \section{Related Work}
 \label{sec:Related Work}
 
-\textbf{Logical Bug Detection in DBMSs.}
-A variety of approaches have been proposed to detect logical bugs in DBMSs~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting,ba2024keep,jiang2023detecting}.  
-For example, \textsc{NoREC}~\cite{rigger2020detecting} transforms an optimizable query into a non-optimizable form and detects semantic inconsistencies by comparing their outputs.  
-\textsc{TLP}~\cite{rigger2020finding} divides query predicates into multiple subqueries and verifies that the union of their results is equivalent to the original query.  
-\textsc{PQS}~\cite{rigger2020testing} constructs queries expected to retrieve a specific pivot row, while \textsc{DQE}~\cite{song2023testing} detects logical bugs by comparing whether different SQL queries with the same predicate access the same rows in the database.
-\textsc{Pinolo}~\cite{hao2023pinolo} generalizes this paradigm through set-level approximation, where predicates are relaxed or restricted to generate over- and under-approximate queries, and correctness is judged by inclusion or containment relations between result sets.
+%\textbf{Logical Bug Detection in DBMSs.}
+%A variety of approaches have been proposed to detect logical bugs in DBMSs~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting,ba2024keep,jiang2023detecting}.  
+%For example, \textsc{NoREC}~\cite{rigger2020detecting} transforms an optimizable query into a non-optimizable form and detects semantic inconsistencies by comparing their outputs.  
+%\textsc{TLP}~\cite{rigger2020finding} divides query predicates into multiple subqueries and verifies that the union of their results is equivalent to the original query.  
+%\textsc{PQS}~\cite{rigger2020testing} constructs queries expected to retrieve a specific pivot row, while \textsc{DQE}~\cite{song2023testing} detects logical bugs by comparing whether different SQL queries with the same predicate access the same rows in the database.
+%\textsc{Pinolo}~\cite{hao2023pinolo} generalizes this paradigm through set-level approximation, where predicates are relaxed or restricted to generate over- and under-approximate queries, and correctness is judged by inclusion or containment relations between result sets.
 %\textsc{TQS}~\cite{tang2023detecting} decomposes wide tables into smaller ones and uses the base table as ground truth for correctness validation.  
-\textsc{EET}~\cite{jiang2024detecting} applies expression-preserving transformations, and \textsc{Radar}~\cite{song2024detecting} compares query results between databases with and without metadata to identify semantic flaws.  
+%\textsc{EET}~\cite{jiang2024detecting} applies expression-preserving transformations, and \textsc{Radar}~\cite{song2024detecting} compares query results between databases with and without metadata to identify semantic flaws.  
 %\textsc{EDC}~\cite{deng2025detecting} detects logical bugs by substituting expressions with precomputed equivalent data and checking for inconsistent results, while \textsc{CODDTest}~\cite{zhang2025constant} leverages constant folding and propagation to generate equivalent queries.  
-
-As discussed in Section~\ref{sec:intro} and Section~\ref{sec:background and motivation}, \toolname\ is orthogonal to these prior efforts.
-Most existing techniques design oracles around query structure and relational operators
-%(e.g., predicate partitioning, query rewrites, set inclusion/containment, or metadata-aware comparisons)
-, and thus excel at exposing bugs in query planning and optimization.
-However, they are less effective for logical bugs rooted in built-in SQL functions.
-In contrast, \toolname\ targets data-operation-level logical bugs inside built-in SQL function implementations by constructing MRs directly from function properties, enabling function-specific mutations and oracles that remain applicable even when the function is embedded in complex query contexts.
+%
+%As discussed in Section~\ref{sec:intro} and Section~\ref{sec:background and motivation}, \toolname\ is orthogonal to these prior efforts.
+%Most existing techniques design oracles around query structure and relational operators, and thus excel at exposing bugs in query planning and optimization.
+%However, they are less effective for logical bugs rooted in built-in SQL functions.
+%In contrast, \toolname\ targets data-operation-level logical bugs inside built-in SQL function implementations by constructing MRs directly from function properties, enabling function-specific mutations and oracles that remain applicable even when the function is embedded in complex query contexts.
 
 
 % Test Case Generation
-\textbf{DBMS Test-Case Generation.}
-A variety of approaches have been proposed for generating diverse test cases for DBMSs, with the aim of improving coverage and revealing potential bugs. 
-These techniques~\cite{sqlsmith,zhong2020squirrel,fu2022griffin,jiang2023dynsql,lin2025qtran} typically focus on generating valid and varied SQL queries, but do not specifically target logical bugs. 
-For example, \textsc{SQLsmith}~\cite{sqlsmith} is a grammar-based DBMS fuzzer that embeds SQL grammar rules to generate complex SQL queries. 
-It uses a random walk approach to explore the SQL syntax and generate a wide range of queries.
-\textsc{SQUIRREL}~\cite{zhong2020squirrel} is a mutation-based DBMS fuzzer which introduces an intermediate representation for SQL queries and models dependencies between SQL statements, enabling the generation of queries that contain multiple SQL operations. 
-\textsc{Griffin}~\cite{fu2022griffin} uses a grammar-free mutation approach, where it mutates SQL queries based on DBMS state information encapsulated in a metadata graph. 
+%\textbf{DBMS Test-Case Generation.}
+%A variety of approaches have been proposed for generating diverse test cases for DBMSs, with the aim of improving coverage and revealing potential bugs. 
+%These techniques~\cite{sqlsmith,zhong2020squirrel,fu2022griffin,jiang2023dynsql,lin2025qtran} typically focus on generating valid and varied SQL queries, but do not specifically target logical bugs. 
+%For example, \textsc{SQLsmith}~\cite{sqlsmith} is a grammar-based DBMS fuzzer that embeds SQL grammar rules to generate complex SQL queries. 
+%It uses a random walk approach to explore the SQL syntax and generate a wide range of queries.
+%\textsc{SQUIRREL}~\cite{zhong2020squirrel} is a mutation-based DBMS fuzzer which introduces an intermediate representation for SQL queries and models dependencies between SQL statements, enabling the generation of queries that contain multiple SQL operations. 
+%\textsc{Griffin}~\cite{fu2022griffin} uses a grammar-free mutation approach, where it mutates SQL queries based on DBMS state information encapsulated in a metadata graph. 
 %\textsc{QTRAN}~\cite{lin2025qtran} is a LLM-based approach that can automatically translate test cases from other DBMSs.
-\textsc{DynSQL}~\cite{jiang2023dynsql} takes a dynamic approach by interacting with the DBMS to capture the latest state information, allowing for the incremental generation of valid and complex queries.
-These techniques aim to prevent semantic errors and improve the diversity of generated queries. 
-In addition to general query generation, some approaches have been specifically designed to aid in bug detection. 
-\textsc{SQLRight}~\cite{liang2022detecting} leverages code coverage feedback to enhance test-case generation. 
-\textsc{QPG}~\cite{ba2023testing} takes a different approach by recording the query plans covered during DBMS testing and prioritizing the mutation of queries that trigger new query plans. 
-
-These query generation approaches complement \toolname.
-They are effective at producing diverse, context-rich queries, while \toolname\ can serve as a lightweight add-on that embeds complex built-in function expressions into these queries and applies function property-driven metamorphic relations as test oracles to detect logical bugs in built-in SQL functions.
+%\textsc{DynSQL}~\cite{jiang2023dynsql} takes a dynamic approach by interacting with the DBMS to capture the latest state information, allowing for the incremental generation of valid and complex queries.
+%These techniques aim to prevent semantic errors and improve the diversity of generated queries. 
+%In addition to general query generation, some approaches have been specifically designed to aid in bug detection. 
+%\textsc{SQLRight}~\cite{liang2022detecting} leverages code coverage feedback to enhance test-case generation. 
+%\textsc{QPG}~\cite{ba2023testing} takes a different approach by recording the query plans covered during DBMS testing and prioritizing the mutation of queries that trigger new query plans. 
+%
+%These query generation approaches complement \toolname.
+%They are effective at producing diverse, context-rich queries, while \toolname\ can serve as a lightweight add-on that embeds complex built-in function expressions into these queries and applies function property-driven metamorphic relations as test oracles to detect logical bugs in built-in SQL functions.
 
