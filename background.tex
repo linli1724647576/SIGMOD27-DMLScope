@@ -2,11 +2,93 @@
 \label{sec:background and motivation}
 
 % Background
+\subsection{Background}
+
+\textbf{Relational Database Management Systems.}
+Relational Database Management Systems (DBMSs) are used to create, manage, and interact with relational databases~\cite{wikipedia2024databases}. 
+In a relational DBMS, data is organized into structured tables (relations) with predefined columns and rows, enabling efficient storage, retrieval, and manipulation. 
+Structured Query Language (SQL) is the standard language for interacting with relational DBMSs, supporting data definition, manipulation, and querying~\cite{vanderlans1989sqlstandard}.
+
+\textbf{Structured Query Language.}
+Relational DBMSs provide Structured Query Language (SQL)~\cite{vanderlans1989sqlstandard} as a unified interface for interacting with stored data, enabling a wide range of operations such as schema definition, data modification, and data retrieval. 
+Based on their functionality, SQL statements are commonly categorized into three main types.
+
+\textit{Data Definition Language} (DDL) statements are responsible for defining and modifying database schema objects. 
+Typical examples include \texttt{CREATE TABLE}, \texttt{ALTER TABLE}, and \texttt{DROP TABLE}, which are used to create new relations, adjust existing structures, and remove schema objects, respectively.
+
+\textit{Data Manipulation Language} (DML) statements are designed for modifying the data stored in database tables. 
+Representative operations include \texttt{INSERT} for adding new tuples, \texttt{UPDATE} for modifying existing records, and \texttt{DELETE} for removing tuples from a table.
+
+\textit{Data Query Language} (DQL) statements are used for retrieving data from the database. 
+The most representative DQL statement is \texttt{SELECT}, which supports a rich set of query constructs, including filtering conditions (e.g., \texttt{WHERE}), ordering (\texttt{ORDER BY}), aggregation functions, join operations, and grouping (\texttt{GROUP BY}), enabling flexible and expressive data analysis over one or multiple tables.
+
+% 这里主要说明 DQE 的局限性
+Although these statement types are all expressed in SQL, they differ significantly in terms of supported operators and semantics. 
+In particular, \texttt{SELECT} statements provide a much richer set of relational operators and compositional capabilities, while \texttt{UPDATE} and \texttt{DELETE} focus on state modification and typically support only a subset of these features. 
+For instance, \texttt{UPDATE} statements in many DBMSs allow value assignments based on expressions involving joins or external tables, whereas \texttt{DELETE} statements are primarily restricted to specifying which rows to remove and do not support value-level transformations. 
+Consequently, \texttt{UPDATE} can express complex data-dependent transformations, while \texttt{DELETE} is limited to tuple elimination without value propagation. 
+
+\textbf{DML Bugs.}
+DML statements directly modify persistent database state, and bugs in their execution may lead to incorrect state transitions, such as updating unintended tuples, assigning incorrect values, or deleting valid data. 
+Compared with read-only query bugs, such bugs are particularly severe because they may cause irreversible data corruption or loss.
+
+From a testing perspective, DML bugs can be broadly divided into crash bugs and logical bugs. 
+Crash bugs manifest as explicit failures (e.g., crashes or runtime errors) and can be detected using failure-based oracles. 
+In contrast, logical bugs do not trigger visible failures; instead, the DBMS completes execution successfully while producing an incorrect database state. 
+These bugs are especially challenging to detect, as they require reasoning about the correctness of state changes rather than returned results, and thus suffer from a more difficult test oracle problem.
+In this work, we focus on logical bugs in DML statements, as they are both practically harmful and insufficiently explored by existing DBMS testing techniques.
+
+\subsection{Limitations of Existing Works}
+Existing research on detecting logical bugs mainly relies on automated testing techniques. 
+However, designing an effective testing framework is challenging due to the \textit{test oracle problem}—it is difficult to determine the correct result of a complex SQL query for comparison. 
+To address this issue, researchers have explored two main categories of approaches~\cite{lin2025qtran,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting}. 
+While this problem has been extensively studied for read-only queries, it becomes significantly more difficult for DML statements, whose correctness must be defined over state transitions rather than query outputs.
+
+\textbf{Differential Testing.}
+Classical differential testing executes the same query across multiple DBMSs and compares their outputs to detect inconsistencies~\cite{slutz1998massive,bati2007genetic}. 
+However, dialect differences, heterogeneous semantics, and system-specific behaviors often make cross-DBMS comparison difficult in practice~\cite{hao2023pinolo}. 
+Different from this cross-system setting, \textsc{DQE}~\cite{song2023testing} brings the differential-testing idea into a single DBMS by comparing multiple related statements within the same system to detect DML bugs. 
+Specifically, it constructs \texttt{SELECT}, \texttt{UPDATE}, and \texttt{DELETE} statements sharing the same predicate, and checks whether they access the same set of tuples. 
+However, it has several limitations. 
+First, because its oracle requires row-access comparability across statement types, test generation must stay within the subset of SQL features that can be meaningfully aligned across \texttt{SELECT}, \texttt{UPDATE}, and \texttt{DELETE}, which limits coverage for complex queries.   % 这一点好理解
+Second, row-access consistency only validates \emph{which tuples} are touched, but not \emph{how} the database state is changed; thus it cannot naturally capture value-level correctness, such as whether an \texttt{UPDATE} computes and propagates the correct new values.   % 太粗粒度了
+Third, since \textsc{DQE} detects disagreement rather than correctness itself, it may miss bugs when multiple related statements follow the same faulty execution path and therefore remain consistently wrong.  %  Pinolo 这么说的
+
+\textbf{Metamorphic Testing.}
+Another dominant line of work is metamorphic testing (MT), which constructs follow-up queries from a seed query and checks whether their outputs satisfy predefined semantic relations~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,tang2023detecting,jiang2024detecting,song2024detecting,deng2025detecting}. 
+Representative approaches such as \textsc{NoREC}~\cite{rigger2020detecting} and \textsc{TLP}~\cite{rigger2020finding} define metamorphic relations based on strict equivalence of query results. 
+Although effective in bypassing the need for ground truth, such equivalence-based strategies constrain the search space of test cases and primarily validate surface-level correctness~\cite{hao2023pinolo}.
+To overcome this limitation, \textsc{Pinolo}~\cite{hao2023pinolo} extends metamorphic testing by introducing approximate relations, generating over- and under-approximate queries and checking whether their results satisfy subset/superset relationships. 
+This relaxation significantly broadens the detectable bug space and inspires more flexible oracle design. 
+Our work is inspired by this key insight. 
+However, existing metamorphic testing techniques, including \textsc{Pinolo}, remain fundamentally query-result-centric: their correctness criteria are defined over returned result sets rather than over the state transitions induced by DML execution. 
+Therefore, directly bringing approximate relations into DML testing is non-trivial. 
+It requires not only generating semantically valid and directionally sound approximate DML statements, but also designing a new oracle that can compare their state effects rather than conventional query outputs. 
+We elaborate on these challenges next.
+
+%However, existing metamorphic testing techniques, including \textsc{Pinolo}, remain fundamentally query-result-centric: their correctness criteria are defined over returned result sets rather than over the state transitions induced by DML execution.
+%Consequently, they cannot naturally capture errors such as incorrect tuple selection, unintended modifications, or wrong value assignments in state-modifying operations.
+
+
+\subsection{Challenges}
 
 % Challenges 生成复杂的DML
-% Challenges 缺乏有效的测试预言机
+\textbf{Challenge \#1: Approximation-Sound DML Synthesis.}
 
+% Challenges 缺乏有效的测试预言机
+\textbf{Challenge \#2: State-Relation-Driven Metamorphic Oracle.}
+
+\subsection{Solutions}
 % Solution 1:
 % Solution 2： 受到 Pinolo 的启发
 
+\subsection{Motivating Example}
 % Motivating Example
+
+% Why DQE cannot detect this bug?
+
+
+
+
+
+

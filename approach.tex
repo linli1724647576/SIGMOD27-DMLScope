@@ -1,4 +1,389 @@
+\section{Approximate State-Relation–Driven Metamorphic Testing}
+\label{sec:asrmt}
+
+To address the test oracle problem for state-modifying SQL statements, we propose \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (\textbf{ASRMT}), a metamorphic testing paradigm that generalizes prior approximation-based techniques \textsc{Pinolo}~\cite{hao2023pinolo} from query results to database state transitions. 
+Unlike existing approaches that reason about equivalence or inclusion relations over result sets, ASRMT defines correctness over the effects of DML statements on database states. 
+This shift is essential for testing data manipulation language (DML) statements, whose semantics are reflected by persistent state changes rather than returned tuples.
+
+\subsection{State Effect}
+
+Let $S$ denote a database state, and let $q$ be a DML statement. The execution of $q$ over $S$ produces a new state:
+\[
+\llbracket q \rrbracket(S) \rightarrow S'.
+\]
+
+To characterize the observable behavior of a DML statement, we introduce the notion of \emph{state effect}.
+
+\begin{definition}[State Effect]
+	Given a DML statement $q$ and a database state $S$, the state effect of $q$ over $S$, denoted by $E(q,S)$, is an abstract set-valued representation of the observable effect induced by executing $q$ on $S$.
+\end{definition}
+
+The notion of state effect is intentionally abstract. In our paper, it is instantiated in two forms, namely the matched-row effect and the changed-row effect, depending on which aspect of the DML semantics is to be observed.
+
+\begin{definition}[Matched-Row Effect]
+	Given a DML statement $q$ and a database state $S$, the matched-row effect of $q$, denoted by $E_m(q,S)$, is the set of target-row tokens corresponding to the primary keys of rows structurally matched by $q$ on $S$.
+\end{definition}
+
+\begin{example}
+	Consider two tables in database state $S$:
+	\[
+	t_1(c_1, c_2) =
+	\begin{array}{c|c}
+		c_1 & c_2 \\
+		\hline
+		1 & 5 \\
+		2 & 8 \\
+		3 & 9
+	\end{array}
+	\quad
+	t_2(c_1, c_3) =
+	\begin{array}{c|c}
+		c_1 & c_3 \\
+		\hline
+		1 & 5 \\
+		2 & 20 \\
+		3 & 15
+	\end{array}
+	\]
+	
+	Consider the DML statement:
+	\[
+	\begin{aligned}
+	q : &\; \text{\textbf{UPDATE} } t_1
+	\text{ \textbf{JOIN} } t_2
+	\text{ \textbf{ON} } t_1.c_1 = t_2.c_1  
+	\text{ \textbf{SET} } t_1.c_2 = t_2.c_3 \\
+	&\text{ \textbf{WHERE} } t_2.c_3 > 10
+	\end{aligned}
+	\]
+	
+	Let $PK(t_1)=\{c_1\}$ be the primary key of $t_1$.  
+	The set of target rows in $t_1$ structurally matched by $q$ is:
+	\[
+	E_m(q,S)=\{t_1\!:\!2,\; t_1\!:\!3\}.
+	\]
+	
+	Intuitively, the join and predicate select the rows in $t_1$ whose corresponding $t_2.c_3 > 10$, 
+	thus determining the intended target set independent of actual value updates.
+\end{example}
+
+
+The matched-row effect captures the \emph{intended target set} of a DML statement. It is suitable when the mutation primarily changes row-selection semantics, such as predicate strengthening/weakening, join-condition mutation, or other transformations that mainly affect which target rows should be selected.
+
+\begin{definition}[Changed-Row Effect]
+	Given a DML statement $q$ and a database state $S$, let $S'=\llbracket q \rrbracket(S)$ be the post-state produced by executing $q$ on $S$. The changed-row effect of $q$, denoted by $E_c(q,S)$, is the set of target-row tokens obtained by comparing $S$ and $S'$ and extracting the rows whose observable states differ before and after execution.
+\end{definition}
+
+\begin{example}
+	Consider two tables in database state $S$:
+	\[
+	t1(c_1, c_2) =
+	\begin{array}{c|c}
+		c_1 & c_2 \\
+		\hline
+		1 & a \\
+		2 & b
+	\end{array}
+	\quad
+	t2(c_1, c_2, c_3) =
+	\begin{array}{c|c|c}
+		c_1 & c_2 & c_3 \\
+		\hline
+		5 & x & 1 \\
+		6 & y & 2 \\
+		7 & z & -1
+	\end{array}
+	\]
+	
+	Consider the DML statement:
+	\[
+	\begin{aligned}
+	q : &\; \text{\textbf{INSERT INTO} } t1(c_1, c_2)
+	\text{ \textbf{SELECT} } c_1, c_2
+	\text{ \textbf{FROM} } t2 \\
+	&\text{ \textbf{WHERE} } c_3 > 0
+	\end{aligned}
+	\]
+	
+	Let $S'=\llbracket q \rrbracket(S)$ be the post-state after execution.  
+	The newly inserted rows correspond to primary keys $\{5,6\}$.  
+	Let $h_5$ and $h_6$ denote their normalized row summaries.  
+	We use a normalization function $\mathit{row}(\cdot)$ that maps a tuple to a canonical representation (e.g., a hash of its attribute values).
+	Then the changed-row effect is:
+	\[
+	E_c(q,S)=\{t1\!:\!5\!:\!\mathit{ROW}(h_5),\; t1\!:\!6\!:\!\mathit{ROW}(h_6)\}.
+	\]
+	
+	Intuitively, the effect cannot be derived purely from structure, and must be obtained by comparing the database states before and after execution.
+\end{example}
+The changed-row effect captures the \emph{actual post-execution effect} of a DML statement. It is necessary when the mutation may influence value assignments, tuple multiplicity, insertion/deletion behavior, or other effects that cannot be determined reliably from the statement structure alone.
+
+\textbf{Effect Abstraction Selection.}
+Accordingly, the abstract state effect $E(q,S)$ used by our approach is instantiated as either $E_m(q,S)$ or $E_c(q,S)$, depending on the comparison strategy. 
+The distinction is essential: $E_m(q,S)$ characterizes which target rows are supposed to be affected according to the statement structure, whereas $E_c(q,S)$ characterizes which rows are actually changed in the database after execution.
+
+More importantly, the choice between $E_m(q,S)$ and $E_c(q,S)$ is not determined merely by the DML type, but by the semantics targeted by the mutation and the robustness of the corresponding effect abstraction. 
+In general, $E_c(q,S)$ is more expressive, because it reflects actual post-execution outcomes and can capture not only row selection but also value updates, insertions, deletions, and multiplicity-related effects. 
+However, this stronger expressiveness may also introduce irrelevant execution-level variability. 
+For example, in join-based \texttt{UPDATE} statements, one-to-many matches or unstable source-to-target mappings may lead to ambiguous value assignments, even when the intended target-row boundary is clear. 
+In such cases, changed-row effects may become noisy or unreliable with respect to the mutation semantics under test. 
+By contrast, $E_m(q,S)$ is less expressive but often more stable: it abstracts away concrete value changes and focuses only on the structurally intended target set. 
+We next provide a concrete example to illustrate this trade-off and
+Section~\ref{subsec:State-Effect Extraction} then presents the detailed strategy for selecting the effect abstraction and for extracting state effects in practice.
+
+\begin{example}
+	Consider the following tables in database state $S$:
+	\[
+	t_1(c_1, c_2)=
+	\begin{array}{c|c}
+		c_1 & c_2 \\
+		\hline
+		1 & 0 \\
+		2 & 0
+	\end{array}
+	\qquad
+	t_2(c_1, c_3)=
+	\begin{array}{c|c}
+		c_1 & c_3 \\
+		\hline
+		1 & 100 \\
+		1 & 200 \\
+		2 & 300
+	\end{array}
+	\]
+	
+	Consider the statement
+	\[
+	\begin{aligned}
+		q : &\; \text{\textbf{UPDATE} } t_1
+		\text{ \textbf{JOIN} } t_2
+		\text{ \textbf{ON} } t_1.c_1 = t_2.c_1 
+		\text{ \textbf{SET} } t_1.c_2 = t_2.c_3 .
+	\end{aligned}
+	\]
+	
+	Structurally, the target rows in $t_1$ matched by $q$ are unambiguous:
+	\[
+	E_m(q,S)=\{t_1\!:\!1,\; t_1\!:\!2\}.
+	\]
+	However, the changed-row effect depends on how the one-to-many join for key $c_1=1$ is resolved during execution. 
+	If the value $100$ is chosen, one possible changed-row effect is
+	\[
+	E_c(q,S)=\{t_1\!:\!1\!:\!\mathit{ROW}(h_{100}),\; t_1\!:\!2\!:\!\mathit{ROW}(h_{300})\},
+	\]
+	whereas if the value $200$ is chosen, another possible changed-row effect is
+	\[
+	E_c(q,S)=\{t_1\!:\!1\!:\!\mathit{ROW}(h_{200}),\; t_1\!:\!2\!:\!\mathit{ROW}(h_{300})\}.
+	\]
+	
+	This example shows that changed-row effects may be more expressive but also less stable, since they may incorporate assignment-level ambiguity that is irrelevant when the mutation only targets row-selection semantics. 
+	Such ambiguity may arise from DBMS-specific source-row selection policies or from execution-dependent factors, such as different join evaluation orders or execution plans, which can lead the same target row to be assigned from different matching source rows.
+	In contrast, matched-row effects remain stable because they only record the structurally intended target rows. 
+\end{example}
+
+\subsection{Approximate State Relation}
+To generalize approximation-based metamorphic testing to state-modifying statements, we extend the notion of approximation from query result sets to database state effects.
+
+\begin{definition}[Approximate State Relation]
+	\label{def:state_approximation}
+	
+	Given a database state \( S \), let \( q_1 \) and \( q_2 \) be two DML statements whose state effects are \( E(q_1, S) \) and \( E(q_2, S) \), respectively.  
+	We say that \( q_1 \) is the \textit{state-level under-approximation} of \( q_2 \) over \( S \), denoted by
+	\[
+	q_1 \preceq_S q_2,
+	\]
+	if and only if
+	\[
+	E(q_1, S) \subseteq E(q_2, S).
+	\]
+	Conversely, \( q_1 \) is the \textit{state-level over-approximation} of \( q_2 \) over \( S \), denoted by
+	\[
+	q_1 \succeq_S q_2,
+	\]
+	if and only if
+	\[
+	E(q_1, S) \supseteq E(q_2, S).
+	\]
+	Here, \( E(q,S) \) denotes the state effect induced by executing statement \( q \) on state \( S \), and \( \subseteq \) and \( \supseteq \) denote inclusion and containment relations between two effect sets.
+\end{definition}
+
+\begin{example}
+	Consider a table \( t(c_1, c_2) \) in database state \( S \):
+	\[
+	t =
+	\begin{array}{c|c}
+		c_1 & c_2 \\
+		\hline
+		1 & 10 \\
+		2 & 20 \\
+		3 & 30
+	\end{array}
+	\]
+	Let the following two DML statements be defined:
+	\[
+	q_1 : \text{\textbf{UPDATE} } t \text{ \textbf{SET} } c_2 = c_2 + 1
+	\text{ \textbf{WHERE} } c_1 > 1
+	\]
+	\[
+	q_2 : \text{\textbf{UPDATE} } t \text{ \textbf{SET} } c_2 = c_2 + 1
+	\text{ \textbf{WHERE} } c_1 \ge 1
+	\]
+	If the state effect is instantiated as the matched-row effect, then
+	\[
+	E(q_1, S) = \{t\!:\!2,\; t\!:\!3\}, \qquad
+	E(q_2, S) = \{t\!:\!1,\; t\!:\!2,\; t\!:\!3\}.
+	\]
+	Since
+	\[
+	E(q_1, S) \subseteq E(q_2, S),
+	\]
+	we have
+	\[
+	q_1 \preceq_S q_2.
+	\]
+	Intuitively, \( q_2 \) weakens the selection predicate and therefore affects a superset of the rows affected by \( q_1 \).
+\end{example}
+
+This definition lifts set-semantic approximation from query outputs to state transitions, enabling reasoning about correctness in terms of persistent database effects.
+To systematically construct DML statements with predictable approximation relations, we introduce approximate mutators.
+
+\begin{definition}[Approximate Mutator]
+	\label{def:approx_mutator}
+	
+	Let $q$ be a DML statement and let $n$ be a syntactic construct in $q$.  
+	An \textit{approximate mutator} $\mu$ transforms $q$ into a new statement $q' = \mu(q)$ by modifying $n$ such that:
+	\[
+	q \preceq_S q' \quad \text{or} \quad q \succeq_S q'.
+	\]
+	The direction of the induced relation determines whether $\mu$ is an under- or over-approximate mutator.
+\end{definition}
+
+\begin{example}
+	Consider the statement
+	\[
+	q : \text{\textbf{DELETE FROM} } t
+	\text{ \textbf{WHERE} } c_1 > 1.
+	\]
+	
+	A mutator may weaken the predicate to
+	\[
+	q' : \text{\textbf{DELETE FROM} } t
+	\text{ \textbf{WHERE} } c_1 \ge 1.
+	\]
+	
+	This transformation enlarges the set of affected rows, resulting in
+	\[
+	q \preceq_S q'.
+	\]
+\end{example}
+
+Approximate mutators provide a principled way to generate related statements whose semantic relationships are known \emph{a priori}, which is essential for constructing effective metamorphic tests.
+However, a mutation typically affects only a local component of a statement. We therefore introduce approximation propagation to characterize how local changes determine global state-effect relations.
+
+\begin{definition}[Approximation Propagation]
+	\label{def:approx_propagation}
+	
+	Let $q$ be a DML statement and let $q'$ be obtained by applying an approximate mutator to a local construct $n \in q$.  
+	Approximation propagation describes how the local semantic deviation induced at $n$ determines a global approximate state relation between $q$ and $q'$:
+	\[
+	q \preceq_S q' \quad \text{or} \quad q \succeq_S q'.
+	\]
+\end{definition}
+
+\begin{example}
+	Consider a table $t(c_1, c_2)$ in database state $S$:
+	\[
+	t =
+	\begin{array}{c|c}
+		c_1 & c_2 \\
+		\hline
+		1 & 5 \\
+		2 & 10 \\
+		3 & 15
+	\end{array}
+	\]
+	
+	Consider the DML statement
+	\[
+	q : \text{\textbf{DELETE FROM} } t
+	\text{ \textbf{WHERE} } \neg (c_2 > 10).
+	\]
+	
+	Since the predicate $\neg(c_2 > 10)$ is equivalent to $c_2 \le 10$, the affected rows are
+	\[
+	E(q,S)=\{t\!:\!1,\; t\!:\!2\}.
+	\]
+	
+	Now consider a local mutation that replaces the comparison operator $>$ with $\ge$ inside the negation:
+	\[
+	q' : \text{\textbf{DELETE FROM} } t
+	\text{ \textbf{WHERE} } \neg (c_2 \ge 10).
+	\]
+	
+	Although the local mutation $>$ $\rightarrow$ $\ge$ weakens the comparison expression itself, 
+	the surrounding negation reverses the approximation direction. 
+	Indeed, $\neg(c_2 \ge 10)$ is equivalent to $c_2 < 10$, and thus
+	\[
+	E(q',S)=\{t\!:\!1\}.
+	\]
+	
+	Therefore,
+	\[
+	E(q',S) \subseteq E(q,S),
+	\]
+	which means that $q'$ is a state-level under-approximation of $q$. 
+	This example illustrates that a local mutation may induce the opposite approximation direction at the statement level when it is propagated through a negation context.
+\end{example}
+
+Approximation propagation connects local syntactic transformations with global semantic relations, ensuring that approximation reasoning remains sound at the level of full DML statements.
+
+\subsection{Test Oracle}
+
+Based on the above definitions, \model\ uses inclusion relations over state effects as the test oracle.
+
+%\begin{definition}[State-Relation Oracle]
+%	Given a database state $S$, a seed DML statement $q$, and its approximate variant $q'$,  
+%	we say that a logical bug is detected if the observed state effects violate their expected approximate state relation.  
+%	More specifically:
+%	
+%	\[
+%		\text{if } q \preceq_S q', \text{ then a bug is detected whenever } E(q,S) \nsubseteq E(q',S);
+%	\]
+%	
+%	\[
+%		\text{if } q \succeq_S q', \text{ then a bug is detected whenever } E(q,S) \nsupseteq E(q',S).
+%	\]
+%\end{definition}
+\begin{definition}[State-Relation Oracle] 
+	Given a seed statement $q$ and its approximate variant $q'$, a logical bug is detected if the observed state effects violate the expected inclusion relation: 
+	\begin{itemize} 
+		\item Over-approximation: $E(q, S) \nsubseteq E(q', S)$ 
+		\item Under-approximation: $E(q', S) \nsubseteq E(q, S)$ 
+	\end{itemize} 
+\end{definition}
+
+This formulation enables approximation-based reasoning over persistent database behaviors, extending metamorphic testing from query correctness to state-transition correctness.
+
+\subsection{Discussion}
+\model\ differs fundamentally from prior approximation-based metamorphic testing frameworks \textsc{Pinolo}~\cite{hao2023pinolo}, which are designed for read-only queries and define approximation relations over returned result sets. 
+For DML statements, however, correctness is no longer determined by query outputs, but by how execution changes the underlying database state. 
+This shift makes it necessary to redefine the semantic object of approximation as state effect, rather than tuples in a result set, and to reason about approximation in terms of state transitions. 
+Moreover, because DML semantics involve both intended target-row selection and actual post-execution changes, \model\ must support different effect abstractions and propagate local mutations to the statement level under state-based semantics, which substantially distinguishes it from prior read-only formulations.
+
 \section{Approach}
 \label{sec:approach}
 
 % 可以按照 Pinolo 的写法来
+
+\begin{figure*}[t]
+	\centering
+	%	\vspace{-3mm}
+	\includegraphics[width=1\linewidth]{./images/Overview2.pdf} 
+	\vspace{-6mm}
+	\caption{\textbf{Overview of \toolname.}}
+	\label{fig:overview}
+%	\vspace{-5mm}
+\end{figure*}
+
+\subsection{State-Effect Extraction}
+\label{subsec:State-Effect Extraction}
