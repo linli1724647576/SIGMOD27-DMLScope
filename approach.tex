@@ -373,17 +373,285 @@ Moreover, because DML semantics involve both intended target-row selection and a
 \section{Approach}
 \label{sec:approach}
 
-% 可以按照 Pinolo 的写法来
+Based on the \model\ model introduced in Section~\ref{sec:asrmt}, we design \toolname, a practical testing framework for detecting logical bugs in DML statements.
+The key idea of \toolname\ is to instantiate approximate state relations over executable DML statements, execute the original and mutated statements from the same initial database state, and check whether their observed state effects satisfy the expected inclusion relation.
+In the following, we present the overall workflow of \toolname\ and then describe each core component in detail.
+
+\subsection{Overview}
+
+Figure~\ref{fig:overview} shows the overall workflow of \toolname.
+The entire process follows a state-oriented generate--mutate--execute--verify paradigm.
+Starting from a round-specific database pre-state, \toolname\ first generates an executable seed DML statement, then synthesizes its approximate variants according to the approximation relations defined in Section~\ref{sec:asrmt}.
+Next, all statements are executed under differential state execution, where each statement is executed independently from the same pre-state and the database state is restored after each execution, so that their resulting state effects are directly comparable.
+Finally, \toolname\ extracts state-effect tokens and checks whether the observed effects satisfy the expected approximate state relation.
+Any violation of the expected relation indicates a potential logical bug.
+
+In the following subsections, we describe these components in detail, including database initialization (Section~\ref{subsec:Database Initialization}), original DML generation (Section~\ref{subsec:Original DML Generation}), approximate DML synthesis (Section~\ref{subsec:Approximate DML Synthesis}), differential state execution (Section~\ref{subsec:Differential State Execution}), state-effect extraction (Section~\ref{subsec:State-Effect Extraction}), and approximate state relation checking (Section~\ref{subsec:Approximate State Relation Checking}).
 
 \begin{figure*}[t]
 	\centering
 	%	\vspace{-3mm}
 	\includegraphics[width=1\linewidth]{./images/Overview2.pdf} 
-	\vspace{-6mm}
+	\vspace{-9mm}
 	\caption{\textbf{Overview of \toolname.}}
 	\label{fig:overview}
-%	\vspace{-5mm}
+	\vspace{-2mm}
 \end{figure*}
+
+\subsection{Database Initialization}
+\label{subsec:Database Initialization}
+Before generating and testing DML statements, \model\ first constructs an independent round environment by initializing a database with a valid schema and initial data. 
+This step is not a primary contribution of our work, but is necessary to ensure the correctness and executability of subsequent testing stages.
+Specifically, we first generate a relational schema consisting of multiple tables with primary key and foreign key constraints, and map logical column types to DBMS-specific physical types to ensure compatibility across different systems. 
+We then populate each table with a small number of rows while satisfying integrity constraints such as key uniqueness and referential dependencies. 
+The insertion order follows dependency relationships so that referenced tables are initialized before dependent ones. 
+In addition, we maintain auxiliary metadata, such as the set of existing primary keys, to guide the generation of valid DML statements and avoid referencing non-existent tuples. 
+This design ensures that all generated statements are executable on the constructed database state and provides a stable pre-state for subsequent differential state execution.
+
+\subsection{Original DML Generation}
+\label{subsec:Original DML Generation}
+
+To systematically explore diverse state-modifying behaviors, we first generate syntactically valid and executable DML statements as testing seeds.
+This process consists of two stages: \emph{Grammar-guided structure generation}, which constructs abstract syntax trees (ASTs) according to a predefined grammar, and \emph{Schema-based instantiation}, which binds schema elements and concrete values to produce executable statements.
+Compared with read-only query generation, original DML generation must additionally guarantee the validity of state-modifying semantics. 
+If a DML statement that violates integrity constraints, such as \texttt{PRIMARY KEY}, \texttt{UNIQUE}, \texttt{NOT NULL}, or \texttt{FOREIGN KEY}, may abort entirely or cause rollback, making its state effect undefined and therefore unusable for subsequent approximation checking. 
+Algorithm~\ref{alg:original_dml_generation} summarizes the overall procedure. 
+
+\textbf{Grammar-Guided Structure Generation.}
+%We adopt a compact yet expressive DML grammar, shown in Figure~\ref{fig:dml-bnf-compact}, to guide the generation process. 
+%The grammar covers the major DML categories, including \texttt{UPDATE}, \texttt{DELETE}, \texttt{INSERT}, and \texttt{REPLACE}, as well as rich query constructs such as joins, nested subqueries, common table expressions (CTEs), and set operations. 
+%This design enables the generation of structurally diverse statements that can exercise complex execution paths in DBMSs.
+%The generation process samples productions recursively from the grammar to construct an AST. 
+%To ensure tractability, we bound the depth of recursion and restrict certain combinatorial constructs (e.g., nested subqueries and set operations) to avoid excessively large or invalid statements.
+Initially, the algorithm performs \emph{grammar-guided structure generation} (Line~1--4), which determines the abstract syntactic shape of a seed DML statement.
+It first selects a statement kind $k$ (Line~2), then chooses a compatible target table $T$ (Line~3), and finally expands the corresponding grammar rules to build an abstract statement skeleton $A$ (Line~4).
+We use the compact DML grammar in Figure~\ref{fig:dml-bnf-compact} to guide this process.
+Beyond basic DML forms, the grammar also supports joins, nested subqueries, common table expressions, and set operations, enabling the generation of structurally rich statements.
+The generator recursively samples productions to construct an AST, while bounding recursion depth and restricting highly combinatorial constructs to keep generation tractable.
+At this stage, only the structural skeleton is determined; concrete schema bindings and values are instantiated later.
+
+\textbf{Schema-based Instantiation.}
+Next, the algorithm performs \emph{schema-based instantiation}, which concretizes the abstract skeleton into an executable DML statement under the current schema and database pre-state.
+It begins by generating candidate target columns from the skeleton and the target-table schema (Line~6), and then filters out invalid columns that are not writable, not visible in the current scope, or incompatible with the chosen statement kind (Line~7).
+Based on the remaining column candidates, the algorithm generates source candidates that may provide values, bindings, or filtering contexts for the statement (Line~8), and removes unstable or incompatible sources by enforcing source-side semantic constraints (Line~9).
+It then materializes a consistent column--source plan $(\pi_c,\pi_s)$ (Line~10), which serves as the blueprint for the subsequent instantiation process.
+After the plan is fixed, the algorithm binds concrete schema elements to the skeleton (Line~11), and then incrementally instantiates key positions, non-key values, and predicates (Line~12--14).
+This order is important.
+Key positions are instantiated first because they determine tuple identity and may immediately conflict with the current pre-state.
+Once key values are fixed, the algorithm instantiates non-key payloads under source, type, and nullability constraints, and finally fills predicate slots with scope-correct and semantically meaningful filtering conditions.
+In this way, the generator does not first produce an arbitrary statement and then attempt to repair it afterwards; instead, it progressively constructs the statement while preserving semantic consistency at each stage.
+The algorithm then performs DML-specific semantic checks according to the statement kind (Line~15--23).
+For \texttt{INSERT} and \texttt{REPLACE}, it checks key consistency and source--payload alignment (Line~15--17), ensuring that inserted tuples neither violate uniqueness constraints nor introduce incompatible source-to-target mappings.
+For \texttt{UPDATE}, it checks stable anchors and assignment validity (Line~18--20), so that writable target columns, source bindings, and right-hand-side expressions remain jointly meaningful.
+For \texttt{DELETE}, it checks that the predicate is non-degenerate (Line~21--22), avoiding statements that collapse into trivial or uncontrolled deletions.
+These statement-specific checks are essential because, unlike read-only query generation, DML generation must additionally preserve the validity of state-modifying semantics.
+Finally, the algorithm performs structural checking, serialization, and execution validation (Line~24--30).
+It first verifies that the instantiated AST remains structurally complete and internally consistent (Line~24), and then serializes it into a concrete SQL statement $q$ (Line~25).
+The statement is accepted only if it can be executed successfully on the current pre-state $S$ (Line~26--27); otherwise, the generation process restarts (Line~28--30).
+
+\begin{algorithm}[t]
+	\caption{Original DML Generation}
+	\footnotesize
+	\label{alg:original_dml_generation}
+	\begin{algorithmic}[1]
+		\Require Schema $\mathcal{S}$, current database pre-state $S$
+		\Ensure Executable original DML statement $q$
+		
+		\State \textbf{// Step 1: Grammar-guided structure generation}
+		\State Choose statement kind $k \in \mathcal{K}$, where
+		$\mathcal{K}=\{\texttt{UPDATE},\texttt{DELETE},\texttt{INSERT},\texttt{REPLACE}\}$.
+		\State Select target table $T \gets \textsc{SelectTarget}(\mathcal{S}, k)$.
+		\State Build abstract skeleton $A \gets \textsc{ExpandGrammar}(k, T)$.
+		
+		\State \textbf{// Step 2: Schema-based instantiation}
+		\State Generate target-column candidates $\mathcal{C} \gets \textsc{GenColCands}(A,\mathcal{S}[T])$.
+		\State Filter invalid columns $\mathcal{C} \gets \textsc{FilterCols}(\mathcal{C}, k, \mathcal{S}[T])$.
+		\State Generate source candidates $\mathcal{R} \gets \textsc{GenSrcCands}(A,\mathcal{S},S,\mathcal{C})$.
+		\State Filter unstable sources $\mathcal{R} \gets \textsc{FilterSrcs}(\mathcal{R}, \mathcal{C})$.
+		\State Materialize a consistent plan $(\pi_c,\pi_s) \gets \textsc{BindPlan}(\mathcal{C},\mathcal{R})$.
+		\State Bind schema elements $A \gets \textsc{BindSchema}(A,\pi_c,\pi_s)$.
+		\State Instantiate key positions $A \gets \textsc{InstKey}(A,S,\pi_c,\pi_s)$.
+		\State Instantiate non-key values $A \gets \textsc{InstVal}(A,S,\pi_c,\pi_s)$.
+		\State Instantiate predicates $A \gets \textsc{InstPred}(A,S,\pi_s)$.
+		\If{$k \in \{\texttt{INSERT},\texttt{REPLACE}\}$}
+		\State $A \gets \textsc{CheckKeyConsistency}(A,S)$
+		\State $A \gets \textsc{CheckSrcPayloadAlignment}(A,\pi_s)$
+		\ElsIf{$k = \texttt{UPDATE}$}
+		\State $A \gets \textsc{CheckStableAnchor}(A,\pi_s)$
+		\State $A \gets \textsc{CheckAssignmentValidity}(A,\mathcal{S}[T])$
+		\ElsIf{$k = \texttt{DELETE}$}
+		\State $A \gets \textsc{CheckNonDegeneratePred}(A,\pi_s)$
+		\EndIf
+		\State $A \gets \textsc{CheckStructure}(A,k)$
+		\State $q \gets \textsc{Serialize}(A)$.
+		\If{\textsc{ExecValid}$(q,S)$}
+		\State \Return $q$
+		\Else
+		\State restart generation
+		\EndIf
+	\end{algorithmic}
+\end{algorithm}
+
+%\begin{algorithm}[t]
+%	\caption{Original DML Generation}
+%	\footnotesize
+%	\label{alg:original_dml_generation}
+%	\begin{algorithmic}[1]
+%		\Require Schema $\mathcal{S}$, database pre-state $S$
+%		\Ensure Executable DML statement $q$
+%		
+%		\State Sample statement kind $k \in \{\texttt{UPDATE}, \texttt{DELETE}, \texttt{INSERT}, \texttt{REPLACE}\}$
+%		\State Generate AST skeleton $A$ via grammar-guided expansion
+%		
+%		\State Resolve target table and schema elements in $A$
+%		
+%		\State Instantiate predicates, assignments, and values using state $S$
+%		
+%		\State Enforce DML-specific semantic constraints
+%		
+%		\State Serialize $A$ into statement $q$
+%		\If{$q$ executes successfully on $S$}
+%		\State \Return $q$
+%		\Else
+%		\State restart generation
+%		\EndIf
+%	\end{algorithmic}
+%\end{algorithm}
+
+
+\begin{figure}[t]
+	\scriptsize
+	\renewcommand{\arraystretch}{0.94}
+	\[
+	\begin{array}{rlcl}
+		\textit{DML} & D & ::= &
+		U \mid Del \mid Ins \mid Rep \\[2pt]
+		
+		\textit{WithClause} & W & ::= &
+		\texttt{WITH}~id~\texttt{AS}~(\,SQ\,)(\texttt{,}~id~\texttt{AS}~(\,SQ\,))^* \\[2pt]
+		
+		\textit{JoinType} & J & ::= &
+		\texttt{JOIN}
+		\mid \texttt{INNER JOIN}
+		\mid \texttt{LEFT JOIN}
+		\mid \texttt{RIGHT JOIN}
+		\mid \texttt{STRAIGHT\_JOIN} \\[2pt]
+		
+		\textit{SetOp} & SO & ::= &
+		\texttt{UNION}
+		\mid \texttt{UNION ALL}
+		\mid \texttt{EXCEPT}
+		\mid \texttt{INTERSECT} \\[2pt]
+		
+		\textit{Update} & U & ::= &
+		[W]~\texttt{UPDATE}~id~[\texttt{PARTITION}(id(\texttt{,}id)^*)] \\
+		& & & [\,J~SRC~[\texttt{AS}~id]~\texttt{ON}~P\,] \\
+		& & & \texttt{SET}~ASSIGNS~[\texttt{FROM}~SRC~[\texttt{AS}~id]]~\texttt{WHERE}~P \\[2pt]
+		
+		\textit{Delete} & Del & ::= &
+		[W]~\texttt{DELETE FROM}~id~[\texttt{PARTITION}(id(\texttt{,}id)^*)]~\texttt{WHERE}~P \\
+		& & \mid &
+		[W]~\texttt{DELETE FROM}~id~J~SRC~\texttt{ON}~P~\texttt{WHERE}~P \\
+		& & \mid &
+		[W]~\texttt{DELETE FROM}~id~\texttt{USING}~SRC~\texttt{WHERE}~P \\[2pt]
+		
+		\textit{Insert} & Ins & ::= &
+		\texttt{INSERT INTO}~id~(\,COLS\,)~IB \\
+		& & \mid &
+		\texttt{INSERT INTO}~id~(\,COLS\,)~IB~CF \\[2pt]
+		
+		\textit{Replace} & Rep & ::= &
+		(\texttt{REPLACE} \mid \texttt{INSERT OR REPLACE})~\texttt{INTO}~id~(\,COLS\,)~IB \\[2pt]
+		
+		\textit{InsertBody} & IB & ::= &
+		\texttt{VALUES}~(\,EXPRS\,)
+		\mid IQ \\[2pt]
+		
+		\textit{InsertQuery} & IQ & ::= &
+		SQ \mid SS \\[2pt]
+		
+		\textit{SelectQuery} & SQ & ::= &
+		[W]~\texttt{SELECT}~[\texttt{DISTINCT}]~EXPRS~\texttt{FROM}~SRC \\
+		& & & [\texttt{WHERE}~P] \\
+		& & & [\texttt{GROUP BY}~EXPRS~[\texttt{HAVING}~P]] \\
+		& & & [\texttt{ORDER BY}~EXPRS]~[\texttt{LIMIT}~int] \\[2pt]
+		
+		\textit{SelectSet} & SS & ::= &
+		SQ \mid SQ~SO~SQ \\[2pt]
+		
+		\textit{Source} & SRC & ::= &
+		id~[\texttt{AS}~id] \\
+		& & \mid &
+		id~[\texttt{AS}~id]~J~(id \mid (\,SQ\,) \mid (\,SS\,))~[\texttt{AS}~id]~\texttt{ON}~P \\
+		& & \mid &
+		(\,SQ\,)~\texttt{AS}~id
+		\mid (\,SS\,)~\texttt{AS}~id \\[2pt]
+		
+		\textit{Predicate} & P & ::= &
+		E~\theta~E
+		\mid \texttt{NOT}~P
+		\mid P~\texttt{AND}~P
+		\mid P~\texttt{OR}~P \\
+		& & \mid &
+		\texttt{EXISTS}(\,SQ\,)
+		\mid E~\texttt{IS}~[\texttt{NOT}]~\texttt{NULL}
+		\mid E~[\texttt{NOT}]~\texttt{IN}(\,SQ \mid EXPRS\,) \\[2pt]
+		
+		\textit{Expr} & E & ::= &
+		id
+		\mid const
+		\mid f(E)
+		\mid (\,SS\,) \\[2pt]
+		
+		\textit{Assignments} & ASSIGNS & ::= &
+		id = E~(\texttt{,}~id = E)^* \\[2pt]
+		
+		\textit{Columns} & COLS & ::= &
+		id~(\texttt{,}~id)^* \\[2pt]
+		
+		\textit{ExprList} & EXPRS & ::= &
+		E~(\texttt{,}~E)^* \\[2pt]
+		
+		\textit{Conflict} & CF & ::= &
+		\texttt{ON DUPLICATE KEY UPDATE}~ASSIGNS \\
+		& & \mid &
+		\texttt{ON CONFLICT}~(\,id\,)~\texttt{DO NOTHING} \\
+		& & \mid &
+		\texttt{ON CONFLICT}~(\,id\,)~\texttt{DO UPDATE SET}~ASSIGNS \\[2pt]
+		
+		\textit{CompOp} & \theta & ::= &
+		\texttt{=} \mid \texttt{<>} \mid \texttt{<} \mid \texttt{>}
+		\mid \texttt{<=} \mid \texttt{>=} \mid \texttt{LIKE} \mid \texttt{BETWEEN}
+	\end{array}
+	\]
+	\vspace{-4mm}
+	\caption{\textbf{Compact DML Syntax Supported by \toolname.} For brevity, low-level lexical elements, including identifiers, function symbols, and constants, are abstracted as \textit{id}, \textit{f}, and \textit{const}.}
+	\label{fig:dml-bnf-compact}
+	\vspace{-6mm}
+\end{figure}
+
+
+
+\subsection{Approximate DML Synthesis}
+\label{subsec:Approximate DML Synthesis}
+
+\subsection{Differential State Execution}
+\label{subsec:Differential State Execution}
 
 \subsection{State-Effect Extraction}
 \label{subsec:State-Effect Extraction}
+
+\subsection{Approximate State Relation Checking}
+\label{subsec:Approximate State Relation Checking}
+
+
+
+
+
+
+
+
+
+
+
+

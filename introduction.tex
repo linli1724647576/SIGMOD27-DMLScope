@@ -38,7 +38,7 @@ Such bugs occur during the execution of state-modifying operations and cannot be
 
 % 第六段写 Key Insight
 Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, which demonstrates that approximate semantic relations can serve as effective invariants for logical bug detection, we revisit this principle in the context of state-changing SQL. 
-We term this paradigm \textbf{Approximate State-Relation–Driven Metamorphic Testing} (ASRMT): for a statement and its over-/under-approximate variant, correctness is validated by whether their post-execution effects satisfy directional partial-order constraints over database state changes (e.g., subset/superset), rather than output equivalence. 
+We term this paradigm \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT): for a statement and its over-/under-approximate variant, correctness is validated by whether their post-execution effects satisfy directional partial-order constraints over database state changes (e.g., subset/superset), rather than output equivalence. 
 Any violation of these approximate state-relation invariants indicates a potential logical bug.
 % 可以举个例子
 
