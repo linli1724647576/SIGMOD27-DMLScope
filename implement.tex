@@ -1,2 +1,9 @@
-\section{Implementation}
-\label{sec:Implementation}
+\subsection{Other Implementation Details}
+\label{subsec:Implementation}
+
+We implemented \toolname\ as a prototype DBMS testing system in Python, consisting of \textcolor{red}{13,455} lines of code.
+To support mutation at the structural level, \toolname\ leverages \textsc{SQLGlot}~\cite{tobymao_sqlglot} to parse original DML statements into ASTs, enabling precise application of approximate mutators while preserving syntactic and semantic correctness.
+During testing, \toolname\ executes generated statements on target DBMSs and collects execution results for further analysis.
+To improve the usability of detected bugs, we adopt \textsc{SQLess}~\cite{lin2024sqless} to simplify failing cases and isolate their root causes, and further apply a deduplication strategy following \textsc{Pinolo}~\cite{hao2023pinolo} to eliminate redundant bug reports.
+\toolname\ is primarily designed for MySQL-compatible systems, including TiDB and OceanBase, but its modular architecture allows for straightforward adaptation to other DBMS dialects by customizing syntax- and type-related components.
+In practice, such adaptation requires only lightweight modifications, and can be further automated using tools such as \textsc{QTRAN}~\cite{lin2025qtran}, which facilitates cross-dialect deployment of metamorphic testing techniques.

@@ -391,8 +391,8 @@ In the following subsections, we describe these components in detail, including 
 \begin{figure*}[t]
 	\centering
 	%	\vspace{-3mm}
-	\includegraphics[width=1\linewidth]{./images/Overview2.pdf} 
-	\vspace{-9mm}
+	\includegraphics[width=1\linewidth]{./images/Overview3.pdf} 
+	\vspace{-6mm}
 	\caption{\textbf{Overview of \toolname.}}
 	\label{fig:overview}
 	\vspace{-2mm}
@@ -423,7 +423,7 @@ Algorithm~\ref{alg:original_dml_generation} summarizes the overall procedure.
 %This design enables the generation of structurally diverse statements that can exercise complex execution paths in DBMSs.
 %The generation process samples productions recursively from the grammar to construct an AST. 
 %To ensure tractability, we bound the depth of recursion and restrict certain combinatorial constructs (e.g., nested subqueries and set operations) to avoid excessively large or invalid statements.
-Initially, the algorithm performs \emph{grammar-guided structure generation} (Line~1--4), which determines the abstract syntactic shape of a seed DML statement.
+Initially, the algorithm performs \emph{grammar-guided structure generation} (Lines~1--4), which determines the abstract syntactic shape of a seed DML statement.
 It first selects a statement kind $k$ (Line~2), then chooses a compatible target table $T$ (Line~3), and finally expands the corresponding grammar rules to build an abstract statement skeleton $A$ (Line~4).
 We use the compact DML grammar in Figure~\ref{fig:dml-bnf-compact} to guide this process.
 Beyond basic DML forms, the grammar also supports joins, nested subqueries, common table expressions, and set operations, enabling the generation of structurally rich statements.
@@ -435,19 +435,19 @@ Next, the algorithm performs \emph{schema-based instantiation}, which concretize
 It begins by generating candidate target columns from the skeleton and the target-table schema (Line~6), and then filters out invalid columns that are not writable, not visible in the current scope, or incompatible with the chosen statement kind (Line~7).
 Based on the remaining column candidates, the algorithm generates source candidates that may provide values, bindings, or filtering contexts for the statement (Line~8), and removes unstable or incompatible sources by enforcing source-side semantic constraints (Line~9).
 It then materializes a consistent column--source plan $(\pi_c,\pi_s)$ (Line~10), which serves as the blueprint for the subsequent instantiation process.
-After the plan is fixed, the algorithm binds concrete schema elements to the skeleton (Line~11), and then incrementally instantiates key positions, non-key values, and predicates (Line~12--14).
+After the plan is fixed, the algorithm binds concrete schema elements to the skeleton (Line~11), and then incrementally instantiates key positions, non-key values, and predicates (Lines~12--14).
 This order is important.
 Key positions are instantiated first because they determine tuple identity and may immediately conflict with the current pre-state.
 Once key values are fixed, the algorithm instantiates non-key payloads under source, type, and nullability constraints, and finally fills predicate slots with scope-correct and semantically meaningful filtering conditions.
 In this way, the generator does not first produce an arbitrary statement and then attempt to repair it afterwards; instead, it progressively constructs the statement while preserving semantic consistency at each stage.
-The algorithm then performs DML-specific semantic checks according to the statement kind (Line~15--23).
-For \texttt{INSERT} and \texttt{REPLACE}, it checks key consistency and source--payload alignment (Line~15--17), ensuring that inserted tuples neither violate uniqueness constraints nor introduce incompatible source-to-target mappings.
-For \texttt{UPDATE}, it checks stable anchors and assignment validity (Line~18--20), so that writable target columns, source bindings, and right-hand-side expressions remain jointly meaningful.
-For \texttt{DELETE}, it checks that the predicate is non-degenerate (Line~21--22), avoiding statements that collapse into trivial or uncontrolled deletions.
+The algorithm then performs DML-specific semantic checks according to the statement kind (Lines~15--22).
+For \texttt{INSERT} and \texttt{REPLACE}, it checks key consistency and source--payload alignment (Lines~15--17), ensuring that inserted tuples neither violate uniqueness constraints nor introduce incompatible source-to-target mappings.
+For \texttt{UPDATE}, it checks assignment validity (Lines~18--19), so that writable target columns, source bindings, and right-hand-side expressions remain jointly meaningful.
+For \texttt{DELETE}, it checks that the predicate is non-degenerate (Lines~20--21), avoiding statements that collapse into trivial or uncontrolled deletions.
 These statement-specific checks are essential because, unlike read-only query generation, DML generation must additionally preserve the validity of state-modifying semantics.
-Finally, the algorithm performs structural checking, serialization, and execution validation (Line~24--30).
-It first verifies that the instantiated AST remains structurally complete and internally consistent (Line~24), and then serializes it into a concrete SQL statement $q$ (Line~25).
-The statement is accepted only if it can be executed successfully on the current pre-state $S$ (Line~26--27); otherwise, the generation process restarts (Line~28--30).
+Finally, the algorithm performs structural checking, serialization, and execution validation (Lines~23--28).
+It first verifies that the instantiated AST remains structurally complete and internally consistent (Line~23), and then serializes it into a concrete SQL statement $q$ (Line~24).
+The statement is accepted only if it can be executed successfully on the current pre-state $S$ (Lines~25--26); otherwise, the generation process restarts (Lines~27--28).
 
 \begin{algorithm}[t]
 	\caption{Original DML Generation}
@@ -455,7 +455,7 @@ The statement is accepted only if it can be executed successfully on the current
 	\label{alg:original_dml_generation}
 	\begin{algorithmic}[1]
 		\Require Schema $\mathcal{S}$, current database pre-state $S$
-		\Ensure Executable original DML statement $q$
+		\Ensure Original DML statement $q$
 		
 		\State \textbf{// Step 1: Grammar-guided structure generation}
 		\State Choose statement kind $k \in \mathcal{K}$, where
@@ -477,7 +477,7 @@ The statement is accepted only if it can be executed successfully on the current
 		\State $A \gets \textsc{CheckKeyConsistency}(A,S)$
 		\State $A \gets \textsc{CheckSrcPayloadAlignment}(A,\pi_s)$
 		\ElsIf{$k = \texttt{UPDATE}$}
-		\State $A \gets \textsc{CheckStableAnchor}(A,\pi_s)$
+%		\State $A \gets \textsc{CheckStableAnchor}(A,\pi_s)$
 		\State $A \gets \textsc{CheckAssignmentValidity}(A,\mathcal{S}[T])$
 		\ElsIf{$k = \texttt{DELETE}$}
 		\State $A \gets \textsc{CheckNonDegeneratePred}(A,\pi_s)$
@@ -491,33 +491,6 @@ The statement is accepted only if it can be executed successfully on the current
 		\EndIf
 	\end{algorithmic}
 \end{algorithm}
-
-%\begin{algorithm}[t]
-%	\caption{Original DML Generation}
-%	\footnotesize
-%	\label{alg:original_dml_generation}
-%	\begin{algorithmic}[1]
-%		\Require Schema $\mathcal{S}$, database pre-state $S$
-%		\Ensure Executable DML statement $q$
-%		
-%		\State Sample statement kind $k \in \{\texttt{UPDATE}, \texttt{DELETE}, \texttt{INSERT}, \texttt{REPLACE}\}$
-%		\State Generate AST skeleton $A$ via grammar-guided expansion
-%		
-%		\State Resolve target table and schema elements in $A$
-%		
-%		\State Instantiate predicates, assignments, and values using state $S$
-%		
-%		\State Enforce DML-specific semantic constraints
-%		
-%		\State Serialize $A$ into statement $q$
-%		\If{$q$ executes successfully on $S$}
-%		\State \Return $q$
-%		\Else
-%		\State restart generation
-%		\EndIf
-%	\end{algorithmic}
-%\end{algorithm}
-
 
 \begin{figure}[t]
 	\scriptsize
@@ -534,8 +507,8 @@ The statement is accepted only if it can be executed successfully on the current
 		\texttt{JOIN}
 		\mid \texttt{INNER JOIN}
 		\mid \texttt{LEFT JOIN}
-		\mid \texttt{RIGHT JOIN}
-		\mid \texttt{STRAIGHT\_JOIN} \\[2pt]
+		\mid \texttt{RIGHT JOIN} \\[2pt]
+%		\mid \texttt{STRAIGHT\_JOIN} \\[2pt]
 		
 		\textit{SetOp} & SO & ::= &
 		\texttt{UNION}
@@ -591,9 +564,10 @@ The statement is accepted only if it can be executed successfully on the current
 		E~\theta~E
 		\mid \texttt{NOT}~P
 		\mid P~\texttt{AND}~P
-		\mid P~\texttt{OR}~P \\
+		\mid P~\texttt{OR}~P 
+%		& & \mid &
+		\texttt{EXISTS}(\,SQ\,) \\
 		& & \mid &
-		\texttt{EXISTS}(\,SQ\,)
 		\mid E~\texttt{IS}~[\texttt{NOT}]~\texttt{NULL}
 		\mid E~[\texttt{NOT}]~\texttt{IN}(\,SQ \mid EXPRS\,) \\[2pt]
 		
@@ -627,29 +601,273 @@ The statement is accepted only if it can be executed successfully on the current
 	\vspace{-4mm}
 	\caption{\textbf{Compact DML Syntax Supported by \toolname.} For brevity, low-level lexical elements, including identifiers, function symbols, and constants, are abstracted as \textit{id}, \textit{f}, and \textit{const}.}
 	\label{fig:dml-bnf-compact}
-	\vspace{-6mm}
+	\vspace{-2mm}
 \end{figure}
 
+Figure~\ref{fig:dml generation} presents a simplified example of original DML generation for an \texttt{UPDATE} statement.
+In this example, the generator produces an abstract skeleton with unresolved table, column, and predicate slots.
+During the schema-based instantiation stage, the generator first selects \(t_1\) as the target table and \(t_2\) as the source table, because the two tables can be naturally connected through the foreign-key relationship on column \(c_1\).
+It then fills the assignment slots with \(t_1.c_2\) and \(t_2.c_2\), since the former is writable under \texttt{UPDATE} semantics and the latter provides a type-compatible source value.
+Next, it instantiates the predicate slot as \(t_1.c_1 = t_2.c_1\), so that the abstract join becomes a semantically meaningful row-to-row correspondence between the two tables.
+As a result, the final original DML statement  is structurally complete, type-consistent, and executable on the current database state.
+
+\begin{figure}[t]
+	\centering
+	%	\vspace{-3mm}
+	\includegraphics[width=1\linewidth]{./images/DMLGeneration_example.pdf} 
+	\vspace{-6mm}
+	\caption{\textbf{Illustrative Example of Original DML Generation.}}
+	\label{fig:dml generation}
+	\vspace{-4mm}
+\end{figure}
 
 
 \subsection{Approximate DML Synthesis}
 \label{subsec:Approximate DML Synthesis}
 
+
+Given an executable original DML statement, \toolname\ next synthesizes a set of approximate variants whose state effects are expected to follow a known directional relation with respect to the seed statement, i.e., either over-approximation or under-approximation.
+This process is mutation-based: instead of generating new statements from scratch, the algorithm systematically applies approximate mutators to selected components of the original DML.
+
+Table~\ref{tab:dml_mutators} summarizes some representative approximate mutators used in our synthesis phase.
+Our design follows the general spirit of \textsc{Pinolo}~\cite{hao2023pinolo}, which organizes mutators around semantic approximation, while extending it to better support DML-specific constructs.
+In particular, beyond relation-, predicate-, and comparison-oriented mutations, we additionally introduce \emph{Join / Structure} mutators to handle DML-relevant constructs such as join type and \texttt{HAVING}-related query structure.
+Overall, compared with \textsc{Pinolo}, our framework introduces \textcolor{red}{XX} additional mutators; more complete mutation rules are available in our GitHub repository.
+
+Algorithm~\ref{alg:approx_dml_synthesis} summarizes the overall approximate DML synthesis procedure.
+Given an executable original DML statement \(q\), the algorithm first parses it into an AST and identifies a set of semantically meaningful local constructs that admit approximate mutation (Lines~2--3), including predicates, comparison expressions, join conditions, and query-structure constructs.
+It then iterates over these constructs and enumerates applicable approximate mutators for each of them (Lines~6--8).
+For every selected mutator, the algorithm applies the mutation at the AST level and serializes the resulting structure into a concrete DML statement \(q'\) (Lines~9--10).
+Next, it determines the approximation direction in two stages: it first infers the local direction induced at the mutation site by the selected mutator (Line~11), and then propagates this direction through the surrounding syntactic context to obtain the global approximation direction of the mutated statement (Line~12).
+In particular, when the mutation site appears in direction-reversing contexts, such as \texttt{NOT}, \texttt{NOT EXISTS}, or the right branch of \texttt{EXCEPT}, the approximation direction is reversed, following the same propagation principle as in \textsc{Pinolo}~\cite{hao2023pinolo}.
+
+\begin{algorithm}[t]
+	\caption{Approximate DML Synthesis}
+	\footnotesize
+	\label{alg:approx_dml_synthesis}
+	\begin{algorithmic}[1]
+		\Require Original DML statement $q$
+		\Ensure A set of approximate variants $\mathcal{R}$
+		
+		\State \textbf{// Step 1: Parse and collect mutation candidates}
+		\State Parse $q$ into AST $A$
+		\State $\Gamma \gets \textsc{CollectMutableNodes}(A)$
+		
+		\State \textbf{// Step 2: Apply approximate mutators}
+		\State $\mathcal{R} \gets \emptyset$
+		\ForAll{node $n \in \Gamma$}
+		\State $\Omega \gets \textsc{ApplicableMutators}(n)$
+		
+		\ForAll{mutator $\mu \in \Omega$}
+		\State $A' \gets \textsc{ApplyMutation}(A, n, \mu)$
+		\State $q' \gets \textsc{Serialize}(A')$
+		
+		\State $m_\ell \gets \textsc{InferLocalDirection}(\mu)$
+		\State $m \gets \textsc{PropagateDirection}(m_\ell, n, A)$
+		\State $\mathcal{R} \gets \mathcal{R} \cup \{(q', m)\}$
+		\EndFor
+		\EndFor
+		
+		\State \Return $\mathcal{R}$
+	\end{algorithmic}
+\end{algorithm}
+
+\begin{table}[t]
+	\centering
+	\small
+	\caption{\textbf{Some representative approximate mutators for DML synthesis.}
+		Transforming the construct \(C_1\) into \(C_2\) achieves the under-approximation,
+		while transforming \(C_2\) into \(C_1\) achieves the over-approximation.}
+	\label{tab:dml_mutators}
+	\renewcommand{\arraystretch}{1.1}
+	\setlength{\tabcolsep}{4pt}
+	\vspace{-2mm}
+	\begin{tabular}{c|c|c}
+		\toprule
+		\textbf{Type} & \textbf{\(C_1\)} & \textbf{\(C_2\)} \\
+		\midrule
+		
+		\multirow{4}{*}{Relation}
+		& \texttt{SELECT ...}
+		& \texttt{SELECT DISTINCT ...} \\
+		
+		& \(A\ \texttt{UNION ALL}\ B\)
+		& \(A\ \texttt{UNION}\ B\) \\
+		
+		& \(A\ \texttt{UNION}\ B\)
+		& \(A\ \texttt{INTERSECT}\ B\) \\
+		
+		& \(A\)
+		& \(A\ \texttt{EXCEPT}\ B\) \\
+		
+		\midrule
+		
+		\multirow{4}{*}{Predicate}
+		& \(P\)
+		& \texttt{FALSE} \\
+		
+		& \texttt{TRUE}
+		& \(P\) \\
+		
+		& \(P \land Q\)
+		& \(P \lor Q\) \\
+		
+		& \texttt{JOIN ... ON } P
+		& \texttt{JOIN ... ON TRUE} \\
+		
+		\midrule
+		
+		\multirow{4}{*}{Comparison}
+		& \(a > b\)
+		& \(a \ge b\) \\
+		
+		& \(a < b\)
+		& \(a \le b\) \\
+		
+		& \(x\ \texttt{BETWEEN}\ l\ \texttt{AND}\ r\)
+		& \(x \ge l\) \\
+		
+		& \(e\ \odot\ \texttt{ANY}(r)\)
+		& \(e\ \odot\ \texttt{ALL}(r)\) \\
+		
+		\midrule
+		
+		\multirow{3}{*}{Join / Structure}
+		& \texttt{INNER JOIN}
+		& \texttt{LEFT JOIN} \\
+		
+		& \texttt{HAVING } P
+		& \texttt{HAVING TRUE} \\
+		
+		& \texttt{GROUP BY ... HAVING } P
+		& \texttt{GROUP BY ...} \\
+		
+		\bottomrule
+	\end{tabular}
+\end{table}
+
 \subsection{Differential State Execution}
 \label{subsec:Differential State Execution}
+
+To make state effects directly comparable across related statements, \toolname\ executes the original DML statement and all its approximate variants under differential state execution. 
+The key requirement is that every statement must be evaluated from the same database pre-state \(S\), rather than from a state already modified by another execution.
+This requirement is essential for \model\, because the expected approximate state relation is defined between \(E(q,S)\) and \(E(q',S)\), i.e., the state effects of two statements over the same initial state. 
+If one statement is executed after another without restoring the database, the resulting effect would instead be measured over a different state, making the subsequent comparison semantically invalid.
+
+Algorithm~\ref{alg:differential_state_execution} summarizes the overall differential state execution procedure.
+Given a database pre-state \(S\), an original DML statement \(q\), and its synthesized approximate variants \(\mathcal{R}\), the algorithm first materializes a statement set \(\mathcal{Q}\) consisting of the original statement and all mutated statements (Line~1).
+It then iterates over each statement \(q_i \in \mathcal{Q}\) and executes it independently from the same pre-state (Lines~3--6).
+Concretely, before each execution, the algorithm restores the database to \(S\) (Line~4), so that every statement observes an identical input state.
+It then executes the current statement to obtain its post-state \(S_i'\) (Line~5) and records this post-state as the independent execution result of \(q_i\) (Line~6).
+This design isolates each execution from the side effects of all others, ensuring that the post-states later used for state-effect extraction are produced from a common starting point rather than from states modified by previous executions.
+In practice, we implement the restoration step through dual isolation. 
+First, each statement is executed in a separate subprocess, which isolates executions at the runtime level and prevents side effects from propagating through shared process state. 
+Second, within each subprocess, the statement is executed inside an isolated transaction and the transaction is rolled back after execution, thereby restoring the database to the round-level pre-state \(S\). 
+Together, these two mechanisms ensure that every original or approximate DML statement is evaluated from the same clean execution environment.
+The resulting post-states are then passed to the next stage for state-effect extraction.
+
+\begin{algorithm}[t]
+	\caption{Differential State Execution}
+	\footnotesize
+	\label{alg:differential_state_execution}
+	\begin{algorithmic}[1]
+		\Require Database pre-state $S$, original DML statement $q$, approximate variants $\mathcal{R}$
+		\Ensure A set of post-states $\mathcal{X} = \{(q_i, S_i')\}$
+		
+		\State $\mathcal{Q} \gets \{q\} \cup \{q' \mid (q', m) \in \mathcal{R}\}$
+		\State $\mathcal{X} \gets \emptyset$
+		\ForAll{statement $q_i \in \mathcal{Q}$}
+		\State \textsc{RestoreState}$(S)$
+		\State $S_i' \gets \llbracket q_i \rrbracket(S)$
+		\State $\mathcal{X} \gets \mathcal{X} \cup \{(q_i, S_i')\}$
+		\EndFor
+		\State \Return $\mathcal{X}$
+	\end{algorithmic}
+\end{algorithm}
 
 \subsection{State-Effect Extraction}
 \label{subsec:State-Effect Extraction}
 
+After differential state execution, \toolname\ extracts state-effect tokens from each executed statement, which serve as the canonical representation for subsequent relation checking.
+Algorithm~\ref{alg:state_effect_extraction} summarizes the overall state-effect extraction procedure.
+
+Given the execution results $\mathcal{X} = \{(q_i, S_i')\}$ produced in Section~\ref{subsec:Differential State Execution}, the algorithm processes each statement independently.
+For each $q_i$, it first parses the statement into a structured representation (Line~2), which includes its statement kind, target table, primary key, and (if available) a derived matching query (\texttt{match\_sql}).
+Based on the mutation operator and its syntactic context, the algorithm then determines an extraction strategy (Lines~3--5), which specifies both the extraction basis (\texttt{matched\_rows} or \texttt{changed\_rows}) and whether only primary keys should be considered.
+% 怎么判断选择 changed rows 或者 matched rows的呢
+\lin{add more detailes about effect selection}
+The extraction follows two alternative paths depending on the selected strategy.
+If the \texttt{matched\_rows} strategy is applicable, the algorithm derives the target-row set directly from the statement structure (Lines~6--7).
+Specifically, it executes the derived \texttt{match\_sql} query to obtain the primary keys of all structurally matched rows, and converts them into tokens of the form $\texttt{table:pk}$.
+This path avoids dependence on execution results and is therefore more stable when the mutation primarily affects row-selection semantics.
+Otherwise, the algorithm adopts the \texttt{changed\_rows} strategy (Lines~8--11), which extracts effects from actual state differences.
+It first reconstructs the pre-state snapshot $S$ and compares it with the post-state $S_i'$ obtained from differential execution.
+Rows whose observable representations differ between the two states are identified as changed rows.
+Each such row is normalized into a token of the form $\texttt{table:pk:ROW(hash)}$, capturing both row identity and value changes.
+This strategy is necessary when the mutation may influence value assignments, tuple multiplicity, or insertion/deletion behavior.
+%Finally, all extracted tokens are normalized into a set representation (Line~12), referred to as the state-effect token set.
+Finally, all extracted tokens are normalized into a set representation (Line~12), referred to as the state-effect token set, which serves as a concrete representation of the state effect \(E(q_i,S)\).
+These token sets abstract away DBMS-specific execution details while preserving the essential semantics required for approximation checking, and are used in the next stage to verify expected over- or under-approximation relations.
+
+% 给两个例子 Why Select matched row, how to extract effect
+
+\begin{algorithm}[t]
+	\caption{State-Effect Extraction}
+	\footnotesize
+	\label{alg:state_effect_extraction}
+	\begin{algorithmic}[1]
+		\Require Execution results $\mathcal{X} = \{(q_i, S_i')\}$, pre-state $S$, mutation context $(\mu, n)$
+		\Ensure State-effect token sets $\{\mathcal{T}_i\}$
+		
+		\ForAll{$(q_i, S_i') \in \mathcal{X}$}
+		\State $dml \gets \textsc{ParseDml}(q_i)$
+		\State $basis \gets \textsc{SelectBasis}(\mu, n, dml, S)$
+		\State $pk\_only \gets \textsc{NeedPKOnly}(\mu, n, basis)$
+		\State $strategy \gets (basis, pk\_only)$
+		
+		\If{$basis = \texttt{matched\_rows}$}
+		\State $rows \gets \textsc{Execute}(dml.match\_sql)$
+		\State $\mathcal{T}_i \gets \textsc{MatchToTokens}(rows, pk\_only)$
+		\Else
+		\State $before \gets \textsc{Snapshot}(S)$
+		\State $after \gets \textsc{Snapshot}(S_i')$
+		\State $\mathcal{T}_i \gets \textsc{DiffToTokens}(before, after, pk\_only)$
+		\EndIf
+		\EndFor
+		
+		\State \Return $\{\mathcal{T}_i\}$
+	\end{algorithmic}
+\end{algorithm}
+
+Figure~\ref{fig:state_effect_example} illustrates two representative scenarios for state-effect extraction.
+Consider the \texttt{UPDATE} statement shown in Figure~\ref{fig:state_effect_example}(a), where the mutation only affects the join predicate (e.g., $t1.c1 \le t2.c1$).
+Although different executions may produce different assigned values due to multiple matching rows in $t2$, the set of affected target rows in $t1$ remains invariant.
+In this case, extracting state effects from execution results would introduce unnecessary instability.
+Therefore, the algorithm selects the \texttt{matched\_rows} strategy and derives a matching query (\texttt{match\_sql}) from the statement structure.
+By executing this query, it obtains the set of structurally matched primary keys $\{1,2\}$, which directly forms the state effect $E(q,S)$.
+In contrast, Figure~\ref{fig:state_effect_example}(b) shows an \texttt{INSERT} statement, where the mutation influences both tuple generation and value assignments.
+Here, the affected rows cannot be determined purely from the query structure, as the inserted tuples depend on the execution outcome.
+Thus, the algorithm selects the \texttt{changed\_rows} strategy.
+It compares the pre-state $S$ and the post-state $S1$ to identify newly inserted rows (e.g., $(4,40)$), and normalizes them into tokens of the form $\texttt{table:pk:ROW(hash)}$.
+These tokens capture both row identity and value changes, yielding the state effect $E(q,S)$.
+
+\begin{figure}[t]
+	\centering
+	%	\vspace{-3mm}
+	\includegraphics[width=1\linewidth]{./images/State-effect example.pdf} 
+	\vspace{-6mm}
+	\caption{\textbf{Illustrative Example of State-Effect Extraction.}}
+	\label{fig:state_effect_example}
+	\vspace{-4mm}
+\end{figure}
+
+
 \subsection{Approximate State Relation Checking}
 \label{subsec:Approximate State Relation Checking}
 
-
-
-
-
-
-
+After state-effect extraction, \toolname\ verifies whether the extracted token sets satisfy the expected approximate state relation.
+For an over-approximate mutant, the token set of the original statement should be contained in that of the mutant, whereas for an under-approximate mutant, the token set of the mutant should be contained in that of the original statement.
+Any violation of the expected relation indicates a potential logical bug.
 
 
 

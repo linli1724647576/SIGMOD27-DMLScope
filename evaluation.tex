@@ -1,6 +1,55 @@
 \section{Evaluation}
 \label{sec: Evaluation}
 
+Our evaluation aims to answer the following questions to demonstrate the effectiveness of \toolname :
+
+\begin{itemize}[leftmargin=20pt]
+	\item[\textbf{\textit{Q1}}] How many unique and new bugs in real-world DBMSs can \toolname\ detect? (Section~\ref{sec:eval-bugs})
+	\item[\textbf{\textit{Q2}}] How diverse are the logical bugs found by \toolname? (Section~\ref{sec:eval-diversity})
+	\item[\textbf{\textit{Q3}}] Can \toolname\ find logical bugs that are missed by existing approaches? (Section~\ref{sec:eval-compare})
+\end{itemize}
+
+\subsection{Experimental Setup}
+%\textbf{Tested DBMS.}
+%We evaluate \toolname\ on 6 widely used DBMSs, as summarized in Table~\ref{table:testdbms}. 
+%These DBMSs were chosen based on their popularity and extensive use in real-world applications. 
+%MySQL, MariaDB, TiDB, and OceanBase are widely used, with MySQL ranking second in the DB-Engines ranking, while MariaDB ranks 13th, and TiDB and OceanBase are also prominent players.
+%Percona, a derivative of MySQL, and PolarDB, a cloud-native database, were selected to represent a broader spectrum of DBMSs. 
+%All of these DBMSs have undergone extensive testing for both logical~\cite{hao2023pinolo,kamm2023testing,rigger2020testing,lin2025qtran,rigger2020detecting,rigger2020finding,song2023testing,tang2023detecting,jiang2024detecting,deng2025detecting,zhang2025constant} and crash bugs~\cite{jiang2023dynsql,sqlsmith,pingcap_gorandgen_2022,zhong2020squirrel}.
+%Although finding new bugs in such widely tested systems is challenging, it serves to validate the effectiveness of \toolname. 
+%In our experiments, \toolname\ tests the latest versions of each DBMS.  
+%We run \toolname\ on each DBMS for 24 hours.
+
+
+%\begin{table}[h]
+%	\centering
+%	\caption{\textbf{The demographics of the DBMSs under test}}
+%	\label{table:testdbms}
+%	\small
+%	\vspace{-2mm}
+%	\resizebox{\dimexpr\textwidth/2\relax}{!}{
+%		\begin{tabular}{lcccc}
+%			\toprule
+%			\textbf{DBMS}       & \textbf{Version}           & \textbf{GitHub Stars} & \textbf{DB-Engine}         & \textbf{First Release} \\ 
+%			\midrule
+%			MySQL~\cite{mysql}      & 9.4.0             & 11.9K        & 2                 & 1995          \\
+%			MariaDB~\cite{mariadb}    & 12.0.2 & 6.7K        & 13                & 2009          \\
+%			OceanBase~\cite{oceanbase}  & 5.7.25 & 9.8K & 99  & 2010          \\
+%			Percona~\cite{percona}      & 8.0.43-34       & 1.2K         & 122               & 2008          \\
+%			PolarDB~\cite{polardb}    & 8.0.32  & 1.6K    & 105               & 2017          \\
+%			TiDB~\cite{tidb}       & 8.0.11 & 39.4K        & 85                & 2016          \\
+%			\bottomrule
+%		\end{tabular}
+%	}
+%	\vspace{-2mm}
+%\end{table}
+
+\textbf{Environment}. 
+We conduct the experiments on one server with 104-cores Intel(R) Xeon(R) Gold 6230R CPU @2.10GHz and 500 GB memory. 
+The server operates under the Ubuntu 20.04 OS, with the 5.4.0-135-generic version of the Linux kernel.
+
+\subsection{Bug Detection}
+\label{sec:eval-bugs}
 % RQ1: New Bugs
 	% Bug Types (Crash Logic)
     % Bug Importance
@@ -9,15 +58,16 @@
 	% Query Validity (和 DQE 相比)
     % Throughput
     
-    
+\subsection{Comprehensive Bug Analysis}
+\label{sec:eval-diversity}
+
 % RQ3：Comoporehensive Bug Analysis
-	% Bug Statements：Update、Delete、Insert (Rules) 一个大表
-    % Feature Diversity (关键字的分布)
-
-
+	% Bug Statements：Update、Delete、Insert (Rules) 一个大表  id，bug id，type，（rule），EET的feature
 % Selected Bugs
 %   Update 、 Delete 、 Insert 各一个
 
+\subsection{Comparative Study}
+\label{sec:eval-compare}
 
 % RQ4： Comparative Study
 % Branch Coverage、Code Coverage (Optional)

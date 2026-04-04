@@ -77,21 +77,26 @@ Otherwise, the statement may fail at execution time or produce undefined state e
 
 % Challenges 缺乏有效的测试预言机 , 强调设计 Test Oracle 的不同之处，不止是比较查询的输出，更需要判断哪里被修改
 \textbf{Challenge \#2: Lack of State-Aware Test Oracles for DML.}
-Existing testing techniques for SQL queries typically define correctness in terms of query outputs.
-However, for DML statements, correctness is determined by how execution transforms the underlying database state, rather than by returned result sets, making output-based oracles inapplicable.
-A key difficulty is that the effect of a DML statement is not directly observable as a single explicit output.
-Instead, it involves multiple aspects of state changes.
-On the one hand, a DML statement determines \emph{which rows} are selected as targets.
-On the other hand, it specifies \emph{how those rows are modified}, including updated values, inserted tuples, or deleted records.
-These aspects may be affected differently by different operations.
-Existing approach \textsc{DQE}~\cite{song2023testing} uses row-access consistency to verify correctness, which can capture which tuples are affected but cannot naturally validate how the database state is changed.
+Unlike read-only queries, whose correctness can be defined over explicit result sets, DML statements do not produce a single observable output. 
+Instead, their semantics are reflected in state transitions over the underlying database. This makes traditional output-based oracles inapplicable.
+A key difficulty is that the effect of a DML statement is not only implicit, but also multi-dimensional. 
+A DML execution simultaneously determines which rows are selected as targets, which rows are actually modified, and how their values are changed. These aspects do not necessarily coincide and may even become ambiguous in the presence of join multiplicity or DBMS-specific execution policies. 
+Therefore, unlike query testing, DML testing often lacks a canonical notion of expected output or a uniquely defined post-state to compare against. 
+% Motivating Example, Matched-Row 
+\lin{add a motivating example, matched-row}
+Existing work partially addresses this problem from an indirect perspective.
+\textsc{DQE}~\cite{song2023testing} uses row-access consistency to verify correctness, which can capture which tuples are affected but cannot naturally validate how the database state is changed.
 Therefore, the challenge is to design a state-aware test oracle that can capture relevant aspects of state changes and support meaningful comparison for DML statements.
+
 %A key difficulty is that database states are complex and high-dimensional, making them hard to compare directly. 
 %It is necessary to design an appropriate abstraction that captures the observable effects of a DML statement while remaining stable and comparable across executions.
 %Furthermore, different types of DML mutations may affect different aspects of state semantics.
 %Some mutations primarily change which rows are targeted, while others affect how values are updated, inserted, or deleted.
 %A single coarse-grained oracle is insufficient to capture all such behaviors.
 % 这里还要承上启下一下现有针对 DML 语句的测试预言机只有 DQE 的 differential oracle， 我们已经在上个小节讨论其局限性。
+
+
+
 
 \subsection{Solutions}
 
@@ -106,11 +111,18 @@ This design enables the systematic generation of DML statements that are both su
 \textbf{Solution to Challenge \#2: State-Relation-Driven Metamorphic Testing.}
 To overcome the lack of state-aware test oracles for DML, we propose \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT).
 Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, \model\ extends approximate metamorphic testing from query outputs to database state transitions.
-Instead of comparing query results, \model\ defines correctness in terms of state effects, i.e., the observable changes induced by executing a DML statement on a database state.
-To make such comparison practical, we design a state-aware effect abstraction that captures the relevant observable behavior of DML execution while remaining stable and comparable across related statements.
+The key idea is to avoid requiring a canonical exact post-state as the test oracle. 
+Instead, \model\ abstracts DML execution into state effects, i.e., observable and comparable representations of how a statement changes the database state. This abstraction enables us to focus on the correctness-relevant aspects of state transitions without directly comparing full final states.
 Based on this abstraction, we define approximate state relations as over- and under-approximation constraints over DML effects, and use them as metamorphic oracles.
 Finally, we execute original and mutated statements from the same pre-state and check whether their observed effects satisfy the expected approximation relations.
+In this way, \model\ turns the DML oracle problem from exact post-state validation into relation checking over comparable state effects.
 The full model and its concrete instantiations are presented in Section~\ref{sec:asrmt}.
+
+%Instead of comparing query results, \model\ defines correctness in terms of state effects, i.e., the observable changes induced by executing a DML statement on a database state.
+%To make such comparison practical, we design a state-aware effect abstraction that captures the relevant observable behavior of DML execution while remaining stable and comparable across related statements.
+%Based on this abstraction, we define approximate state relations as over- and under-approximation constraints over DML effects, and use them as metamorphic oracles.
+%Finally, we execute original and mutated statements from the same pre-state and check whether their observed effects satisfy the expected approximation relations.
+%The full model and its concrete instantiations are presented in Section~\ref{sec:asrmt}.
 
 \subsection{Motivating Example}
 % Motivating Example
