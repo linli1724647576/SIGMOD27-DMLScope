@@ -1,1 +1,5 @@
 \section{Conclusion}
+In this paper, we propose Approximate State-Relation--Driven Metamorphic Testing, a novel testing paradigm for detecting logical bugs in state-modifying SQL statements. 
+It characterizes DML semantics through state effects and validates correctness by checking approximate relations between the effects of related statements. 
+Based on this paradigm, we develop \toolname, which systematically generates executable DML statements, synthesizes approximate variants, executes them from the same database pre-state, and verifies their state-effect relations. 
+We evaluate \toolname\ on six widely used DBMSs and uncover \logical\ previously unknown logical bugs. 

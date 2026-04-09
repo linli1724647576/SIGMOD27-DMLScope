@@ -5,12 +5,12 @@
 \subsection{Background}
 
 \textbf{Relational Database Management Systems.}
-Relational Database Management Systems (DBMSs) are used to create, manage, and interact with relational databases~\cite{wikipedia2024databases}. 
+Relational Database Management Systems (DBMSs) are used to create, manage, and query relational databases~\cite{wikipedia2024databases}.  
 In a relational DBMS, data is organized into structured tables (relations) with predefined columns and rows, enabling efficient storage, retrieval, and manipulation. 
 Structured Query Language (SQL) is the standard language for interacting with relational DBMSs, supporting data definition, manipulation, and querying~\cite{vanderlans1989sqlstandard}.
 
 \textbf{Structured Query Language.}
-Relational DBMSs provide Structured Query Language (SQL)~\cite{vanderlans1989sqlstandard} as a unified interface for interacting with stored data, enabling a wide range of operations such as schema definition, data modification, and data retrieval. 
+Relational DBMSs provide SQL as a unified interface for interacting with stored data, enabling a wide range of operations such as schema definition, data modification, and data retrieval. 
 Based on their functionality, SQL statements are commonly categorized into three main types.
 
 \textit{Data Definition Language} (DDL) statements are responsible for defining and modifying database schema objects. 
@@ -25,51 +25,53 @@ The most representative DQL statement is \texttt{SELECT}, which supports a rich 
 % 这里主要说明 DQE 的局限性
 Although these statement types are all expressed in SQL, they differ significantly in terms of supported operators and semantics. 
 In particular, \texttt{SELECT} statements provide a much richer set of relational operators and compositional capabilities, while \texttt{UPDATE} and \texttt{DELETE} focus on state modification and typically support only a subset of these features. 
-For instance, \texttt{UPDATE} statements in many DBMSs allow value assignments based on expressions involving joins or external tables, whereas \texttt{DELETE} statements are primarily restricted to specifying which rows to remove and do not support value-level transformations. 
-Consequently, \texttt{UPDATE} can express complex data-dependent transformations, while \texttt{DELETE} is limited to tuple elimination without value propagation. 
+%For instance, \texttt{UPDATE} statements in many DBMSs allow value assignments based on expressions involving joins or external tables, whereas \texttt{DELETE} statements are primarily restricted to specifying which rows to remove and do not support value-level transformations. 
+%Consequently, \texttt{UPDATE} can express complex data-dependent transformations, while \texttt{DELETE} is limited to tuple elimination without value propagation. 
 
 \textbf{DML Bugs.}
-DML statements directly modify persistent database state, and bugs in their execution may lead to incorrect state transitions, such as updating unintended tuples, assigning incorrect values, or deleting valid data. 
+DML statements directly modify persistent database states, and bugs in their execution may lead to incorrect state transitions, such as updating unintended tuples, assigning incorrect values, or deleting valid data. 
 Compared with read-only query bugs, such bugs are particularly severe because they may cause irreversible data corruption or loss.
-
+%
 From a testing perspective, DML bugs can be broadly divided into crash bugs and logical bugs. 
 Crash bugs manifest as explicit failures (e.g., crashes or runtime errors) and can be detected using failure-based oracles. 
 In contrast, logical bugs do not trigger visible failures; instead, the DBMS completes execution successfully while producing an incorrect database state. 
-These bugs are especially challenging to detect, as they require reasoning about the correctness of state changes rather than returned results, and thus suffer from a more difficult test oracle problem.
+These bugs are especially challenging to detect, as they require reasoning about the correctness of state changes rather than returned results.
 In this work, we focus on logical bugs in DML statements, as they are both practically harmful and insufficiently explored by existing DBMS testing techniques.
 
+\vspace{-3mm}
 \subsection{Limitations of Existing Works}
 Existing research on detecting logical bugs mainly relies on automated testing techniques. 
-However, designing an effective testing framework is challenging due to the \textit{test oracle problem}—it is difficult to determine the correct result of a complex SQL query for comparison. 
+However, designing an effective testing framework is challenging due to the \textit{test oracle problem}~\cite{howden2006theoretical}—it is difficult to determine the correct behavior of a complex SQL statement for comparison. 
 To address this issue, researchers have explored two main categories of approaches~\cite{lin2025qtran,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting}. 
-While this problem has been extensively studied for read-only queries, it becomes significantly more difficult for DML statements, whose correctness must be defined over state transitions rather than query outputs.
+%While this problem has been extensively studied for read-only queries, it becomes significantly more difficult for DML statements, whose correctness must be defined over state transitions rather than query outputs.
 
 \textbf{Differential Testing.}
 Classical differential testing executes the same query across multiple DBMSs and compares their outputs to detect inconsistencies~\cite{slutz1998massive,bati2007genetic}. 
 However, dialect differences, heterogeneous semantics, and system-specific behaviors often make cross-DBMS comparison difficult in practice~\cite{hao2023pinolo}. 
-Different from this cross-system setting, \textsc{DQE}~\cite{song2023testing} brings the differential-testing idea into a single DBMS by comparing multiple related statements within the same system to detect DML bugs. 
+Different from this cross-system setting, \textsc{DQE}~\cite{song2023testing} brings the differential testing idea into a single DBMS by comparing multiple related statements within the same system to detect DML bugs. 
 Specifically, it constructs \texttt{SELECT}, \texttt{UPDATE}, and \texttt{DELETE} statements sharing the same predicate, and checks whether they access the same set of tuples. 
 However, it has several limitations. 
 First, because its oracle requires row-access comparability across statement types, test generation must stay within the subset of SQL features that can be meaningfully aligned across \texttt{SELECT}, \texttt{UPDATE}, and \texttt{DELETE}, which limits coverage for complex queries.   % 这一点好理解
 Second, row-access consistency only validates \emph{which tuples} are touched, but not \emph{how} the database state is changed; thus it cannot naturally capture value-level correctness, such as whether an \texttt{UPDATE} computes and propagates the correct new values.   % 太粗粒度了
-Third, since \textsc{DQE} detects disagreement rather than correctness itself, it may miss bugs when multiple related statements follow the same faulty execution path and therefore remain consistently wrong.  %  Pinolo 这么说的
+Third, since \textsc{DQE} detects disagreement rather than correctness itself, it may miss bugs when multiple related statements follow the same faulty execution path and therefore remain consistently wrong~\cite{hao2023pinolo}.  %  Pinolo 这么说的
 
 \textbf{Metamorphic Testing.}
-Another dominant line of work is metamorphic testing (MT), which constructs follow-up queries from a seed query and checks whether their outputs satisfy predefined semantic relations~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,tang2023detecting,jiang2024detecting,song2024detecting,deng2025detecting}. 
+Another dominant line of work is metamorphic testing (MT), which constructs mutated queries from an original query and checks whether their outputs satisfy predefined semantic relations~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,tang2023detecting,jiang2024detecting,song2024detecting,deng2025detecting}. 
 Representative approaches such as \textsc{NoREC}~\cite{rigger2020detecting} and \textsc{TLP}~\cite{rigger2020finding} define metamorphic relations based on strict equivalence of query results. 
 Although effective in bypassing the need for ground truth, such equivalence-based strategies constrain the search space of test cases and primarily validate surface-level correctness~\cite{hao2023pinolo}.
-To overcome this limitation, \textsc{Pinolo}~\cite{hao2023pinolo} extends metamorphic testing by introducing approximate relations, generating over- and under-approximate queries and checking whether their results satisfy subset/superset relationships. 
+To overcome this limitation, \textsc{Pinolo}~\cite{hao2023pinolo} extends MT by introducing approximate relations, generating over- and under-approximate queries and checking whether their results satisfy subset/superset relationships. 
 This relaxation significantly broadens the detectable bug space and inspires more flexible oracle design. 
 Our work is inspired by this key insight. 
-However, existing metamorphic testing techniques, including \textsc{Pinolo}, remain fundamentally query-result-centric: their correctness criteria are defined over returned result sets rather than over the state transitions induced by DML execution. 
+However, existing MT techniques, including \textsc{Pinolo}, remain fundamentally query-result-centric: their correctness criteria are defined over returned result sets rather than over the state transitions induced by DML execution. 
 Therefore, directly bringing approximate relations into DML testing is non-trivial. 
 It requires not only generating semantically valid and directionally sound approximate DML statements, but also designing a new oracle that can compare their state effects rather than conventional query outputs. 
 We elaborate on these challenges next.
 
+\vspace{-3mm}
 \subsection{Challenges}
 % Challenges 生成复杂的DML
 \textbf{Challenge \#1: Generating Complex and Valid DML Statements.}
-To effectively expose deep logical bugs, testing must explore \emph{complex} DML statements that exercise rich execution paths, such as joins, nested subqueries, and data-dependent value transformations.
+To effectively expose deep logical bugs, testing must explore complex DML statements that exercise rich execution paths, such as joins, nested subqueries, and data-dependent value transformations~\cite{hao2023pinolo}.
 However, prior work such as \textsc{DQE}~\cite{song2023testing} mainly focuses on relatively simple DML patterns, limiting its ability to cover complex semantics and deeper execution behaviors.
 Compared with read-only queries, generating valid and meaningful DML statements is substantially more challenging.
 A DML statement must not only be syntactically correct, but also satisfy various semantic constraints, including key consistency, type compatibility, source--target alignment, and integrity constraints imposed by the schema and the current database pre-state.
@@ -79,14 +81,16 @@ Otherwise, the statement may fail at execution time or produce undefined state e
 \textbf{Challenge \#2: Lack of State-Aware Test Oracles for DML.}
 Unlike read-only queries, whose correctness can be defined over explicit result sets, DML statements do not produce a single observable output. 
 Instead, their semantics are reflected in state transitions over the underlying database. This makes traditional output-based oracles inapplicable.
-A key difficulty is that the effect of a DML statement is not only implicit, but also multi-dimensional. 
-A DML execution simultaneously determines which rows are selected as targets, which rows are actually modified, and how their values are changed. These aspects do not necessarily coincide and may even become ambiguous in the presence of join multiplicity or DBMS-specific execution policies. 
-Therefore, unlike query testing, DML testing often lacks a canonical notion of expected output or a uniquely defined post-state to compare against. 
-% Motivating Example, Matched-Row 
-\lin{add a motivating example, matched-row}
-Existing work partially addresses this problem from an indirect perspective.
-\textsc{DQE}~\cite{song2023testing} uses row-access consistency to verify correctness, which can capture which tuples are affected but cannot naturally validate how the database state is changed.
-Therefore, the challenge is to design a state-aware test oracle that can capture relevant aspects of state changes and support meaningful comparison for DML statements.
+The main difficulty is that a DML-induced state transition is both implicit and multidimensional: it determines which rows are selected as targets, which rows are actually modified, and how their values are changed. 
+These aspects do not necessarily coincide, and some may even become unstable under realistic execution semantics.
+%These aspects do not necessarily coincide and may even become unstable in the presence of join multiplicity or DBMS-specific execution policies.  
+For example, in Figure~\ref{fig:motivating example}, the target row \texttt{t3.id = 3} joins with two rows in \texttt{t1} because the join condition \texttt{t3.grp = t1.grp} is non-unique. 
+Even if the original and mutated \texttt{UPDATE} statements both operate on the same target row, the final value written to \texttt{t3.ref} may still depend on which matching source row is chosen during execution, e.g., \texttt{5} or \texttt{6}. 
+As a result, the row-selection boundary may remain stable while the exact post-state varies, making direct comparison over full final states fragile and unreliable. 
+Therefore, the challenge is not merely to compare whether two statements produce the same output, but to design a state-aware oracle that captures the correctness-relevant aspects of state changes while remaining robust to such execution-level ambiguity.
+%Existing work partially addresses this problem from an indirect perspective.
+%\textsc{DQE}~\cite{song2023testing} uses row-access consistency to verify correctness, which can capture which tuples are affected but cannot naturally validate how the database state is changed.
+%Therefore, the challenge is to design a state-aware test oracle that can capture relevant aspects of state changes and support meaningful comparison for DML statements.
 
 %A key difficulty is that database states are complex and high-dimensional, making them hard to compare directly. 
 %It is necessary to design an appropriate abstraction that captures the observable effects of a DML statement while remaining stable and comparable across executions.
@@ -95,14 +99,12 @@ Therefore, the challenge is to design a state-aware test oracle that can capture
 %A single coarse-grained oracle is insufficient to capture all such behaviors.
 % 这里还要承上启下一下现有针对 DML 语句的测试预言机只有 DQE 的 differential oracle， 我们已经在上个小节讨论其局限性。
 
-
-
-
+\vspace{-2.5mm}
 \subsection{Solutions}
 
 \textbf{Solution to Challenge \#1: Structured-Guided and Constraint-Aware DML Generation.}
 To address the difficulty of generating complex and valid DML statements, we adopt a structure-first, constraint-guided generation strategy.
-We explicitly separates structural complexity from semantic validity.
+We explicitly separate structural complexity from semantic validity.
 Specifically, we first construct structurally rich DML skeletons using a grammar that captures diverse SQL constructs, such as joins and nested subqueries, ensuring sufficient exploration of complex execution paths.
 We then progressively instantiate these skeletons under schema constraints and the current database pre-state, so that validity requirements—such as key consistency, type compatibility, and source--target alignment—are satisfied by construction.
 This design enables the systematic generation of DML statements that are both sufficiently complex and reliably executable for subsequent testing.
@@ -110,9 +112,11 @@ This design enables the systematic generation of DML statements that are both su
 
 \textbf{Solution to Challenge \#2: State-Relation-Driven Metamorphic Testing.}
 To overcome the lack of state-aware test oracles for DML, we propose \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT).
-Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, \model\ extends approximate metamorphic testing from query outputs to database state transitions.
+Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, \model\ extends approximate MT from query outputs to database state transitions.
 The key idea is to avoid requiring a canonical exact post-state as the test oracle. 
-Instead, \model\ abstracts DML execution into state effects, i.e., observable and comparable representations of how a statement changes the database state. This abstraction enables us to focus on the correctness-relevant aspects of state transitions without directly comparing full final states.
+Instead, \model\ abstracts DML execution into state effects, i.e., observable and comparable representations of how a statement changes the database state.
+These state effects are designed to capture the correctness-relevant aspects of state transitions, while abstracting away irrelevant execution-level differences, thereby providing a more stable basis for comparison.
+%Instead, \model\ abstracts DML execution into state effects, i.e., observable and comparable representations of how a statement changes the database state. This abstraction enables us to focus on the correctness-relevant aspects of state transitions without directly comparing full final states. 
 Based on this abstraction, we define approximate state relations as over- and under-approximation constraints over DML effects, and use them as metamorphic oracles.
 Finally, we execute original and mutated statements from the same pre-state and check whether their observed effects satisfy the expected approximation relations.
 In this way, \model\ turns the DML oracle problem from exact post-state validation into relation checking over comparable state effects.
@@ -121,11 +125,17 @@ The full model and its concrete instantiations are presented in Section~\ref{sec
 %Instead of comparing query results, \model\ defines correctness in terms of state effects, i.e., the observable changes induced by executing a DML statement on a database state.
 %To make such comparison practical, we design a state-aware effect abstraction that captures the relevant observable behavior of DML execution while remaining stable and comparable across related statements.
 %Based on this abstraction, we define approximate state relations as over- and under-approximation constraints over DML effects, and use them as metamorphic oracles.
-%Finally, we execute original and mutated statements from the same pre-state and check whether their observed effects satisfy the expected approximation relations.
-%The full model and its concrete instantiations are presented in Section~\ref{sec:asrmt}.
+
 
 \subsection{Motivating Example}
 % Motivating Example
+Figure~\ref{fig:motivating example} presents a real logical bug triggered by a structurally rich \texttt{UPDATE} statement that contains a join, a nested subquery, and a conditional expression. 
+Such bugs are difficult to expose without generating complex original DML statements, since simple patterns are unlikely to exercise the relevant execution logic. 
+Starting from the original statement, we apply \model\ to construct a mutated variant by weakening the predicate with \texttt{OR TRUE}, thereby obtaining a logically broader statement. 
+To detect the bug, we do not compare full final states directly, because they may be unstable under one-to-many joins; instead, we compare stable state effects that capture the correctness-relevant outcome, namely which rows are affected. 
+Under this reasoning, the broader statement is expected to affect at least the same row as the original one, but MySQL updates no row at all, thereby revealing a logical bug.
+
+% How to detect
 
 % Why DQE cannot detect this bug?
 

@@ -1,3 +1,12 @@
 \begin{abstract}
-	...
+	Database Management Systems (DBMSs) are critical infrastructure for modern data-driven applications, and logical bugs in DBMSs may silently produce incorrect query results or corrupted database states. 
+	While prior work has made significant progress in detecting logical bugs in read-only queries, considerably less attention has been paid to state-modifying SQL statements. 
+	Data manipulation language (DML) statements such as \texttt{INSERT}, \texttt{UPDATE}, and \texttt{DELETE} directly modify persistent database contents, making their correctness harder to validate and their consequences more severe. 
+	
+	In this paper, we propose \textit{Approximate State-Relation--Driven Metamorphic Testing} (ASRMT), a novel testing paradigm for detecting logical bugs in state-modifying SQL statements. 
+	ASRMT characterizes DML semantics through state effects, an abstract and comparable representation of the state changes induced by DML execution, and validates correctness by checking approximate relations between the effects of related statements. 
+	Based on this paradigm, we develop \toolname, which systematically generates executable DML statements, synthesizes approximate variants, executes them from the same database pre-state, and verifies whether their state effects satisfy the expected approximate relations. 
+	We evaluate \toolname\ on six widely used DBMSs and uncover 47 previously unknown bugs, including 21 logical bugs. 
+	The results show that \toolname\ effectively detects logical bugs in DML statements and substantially broadens the scope of DBMS testing beyond existing techniques.
 \end{abstract}
+

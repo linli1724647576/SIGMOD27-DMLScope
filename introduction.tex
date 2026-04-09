@@ -1,22 +1,48 @@
+\vspace{-2mm}
 \section{Introduction}
 \label{sec:intro}
 
 % 第一段写 DBMS 的背景以及安全漏洞
-Database Management Systems (DBMSs) are a fundamental component of modern data-driven applications, ranging from e-commerce and online banking to large-scale enterprise systems~\cite{florescu1998database, zhou2020database}. 
-They provide standardized interfaces, such as SQL, to support both data retrieval and data modification~\cite{chamberlin1974sequel}. 
-Given their critical role, bugs in DBMSs can lead to severe consequences, including incorrect query results, data corruption, and even security violations~\cite{zhong2020squirrel,jiang2023dynsql}.
-Among various types of bugs, logical bugs are particularly critical because they do not crash the system, but silently lead to incorrect query results or incorrect database states, often remaining unnoticed for long periods~\cite{rigger2020detecting, kamm2023testing,song2023testing}. 
-Recent studies have demonstrated that even well-tested DBMSs still contain numerous previously unknown logical bugs, highlighting the difficulty of ensuring their correctness~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}.
+%Database Management Systems (DBMSs) are a fundamental component of modern data-driven applications, ranging from e-commerce and online banking to large-scale enterprise systems~\cite{florescu1998database, zhou2020database}. 
+%They provide standardized interfaces, such as SQL, to support both data retrieval and data modification~\cite{chamberlin1974sequel}. 
+%Given their critical role, bugs in DBMSs can lead to severe consequences, including incorrect query results, data corruption, and even security violations~\cite{zhong2020squirrel,jiang2023dynsql}.
+%Among various types of bugs, logical bugs are particularly critical because they do not crash the system, but silently lead to incorrect query results or incorrect database states, often remaining unnoticed for long periods~\cite{rigger2020detecting, kamm2023testing,song2023testing}. 
+%Recent studies have demonstrated that even well-tested DBMSs still contain numerous previously unknown logical bugs, highlighting the difficulty of ensuring their correctness~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}. 
+Database Management Systems (DBMSs) are critical infrastructure for modern data-driven applications, ranging from e-commerce and online banking to large-scale enterprise systems~\cite{florescu1998database, zhou2020database}. 
+They provide standardized interfaces such as SQL for both data retrieval and data modification~\cite{chamberlin1974sequel}. 
+Given their central role, bugs in DBMSs can cause serious consequences, including incorrect query results, data corruption, and even security violations~\cite{zhong2020squirrel,jiang2023dynsql}. 
+Among them, logical bugs are particularly dangerous because they do not trigger crashes, but silently produce incorrect results or database states, often remaining hidden for long periods~\cite{rigger2020detecting,kamm2023testing,song2023testing}. 
+Recent studies have shown that even mature and widely tested DBMSs still contain many previously unknown logical bugs, highlighting the difficulty of ensuring DBMS correctness~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}. 
 
 % 第二段写 DML 的实现复杂性， 以及导致出现 Bug，然后说明逻辑错误是尤为严重的 Bug。
-While existing research has made significant progress in detecting logical bugs in read-only queries~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}, considerably less attention has been paid to state-modifying SQL statements. 
-In this work, we focus on data manipulation language (DML) statements that directly change persistent database contents, including common operations such as \texttt{INSERT}, \texttt{UPDATE}, and \texttt{DELETE}, as well as DBMS-specific extensions such as \texttt{REPLACE} when supported. 
-Unlike read-only queries that only return result sets, these statements produce persistent state changes, making their correctness harder to validate and their consequences more severe. 
-For example, an incorrect \texttt{INSERT} may introduce spurious tuples, an erroneous \texttt{UPDATE} may propagate wrong values to a large number of records, and an unintended \texttt{DELETE} may remove data that should have been preserved, leading to irreversible inconsistencies or data loss. 
-Testing such statements is challenging because their semantics are often intertwined with complex predicates, nested subqueries, joins, constraint enforcement, and integrity-related side effects such as cascades. 
-As a result, logical bugs in DBMSs may silently affect which tuples are inserted, modified, or deleted, thereby producing incorrect database states without any explicit failure signal~\cite{song2023testing}. 
+%While existing research has made significant progress in detecting logical bugs in read-only queries~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}, considerably less attention has been paid to state-modifying SQL statements. 
+%In this work, we focus on data manipulation language (DML) statements that directly change persistent database contents, including common operations such as \texttt{INSERT}, \texttt{UPDATE}, and \texttt{DELETE}, as well as DBMS-specific extensions such as \texttt{REPLACE} when supported. 
+%Unlike read-only queries that only return result sets, these statements produce persistent state changes, making their correctness harder to validate and their consequences more severe. 
+%For example, an incorrect \texttt{INSERT} may introduce spurious tuples, an erroneous \texttt{UPDATE} may propagate wrong values to a large number of records, and an unintended \texttt{DELETE} may remove data that should have been preserved, leading to irreversible inconsistencies or data loss. 
+%Testing such statements is challenging because their semantics are often intertwined with complex predicates, nested subqueries, joins, constraint enforcement, and integrity-related side effects such as cascades. 
+%As a result, logical bugs in DBMSs may silently affect which tuples are inserted, modified, or deleted, thereby producing incorrect database states without any explicit failure signal~\cite{song2023testing}. 
+Although prior work has made substantial progress in detecting logical bugs in read-only queries~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}, much less attention has been paid to state-modifying SQL statements. 
+In this work, we focus on data manipulation language (DML) statements, including \texttt{INSERT}, \texttt{UPDATE}, \texttt{DELETE}, and DBMS-specific extensions such as \texttt{REPLACE}. 
+Unlike read-only queries, DML statements directly modify persistent database contents, making their correctness harder to validate and their consequences more severe~\cite{song2023testing}. 
+Moreover, DML execution often involves complex predicates, nested subqueries, joins, and integrity-related side effects, which further increase the risk of subtle logical bugs. 
 
 % 第三段举一个例子介绍一下 Logical bugs 是什么
+Figure~\ref{fig:motivating example} shows a real DML bug from MySQL (Bug \#120047~\cite{mysql_bug_120047}), where the DBMS incorrectly handles row selection during the execution of a join-based \texttt{UPDATE} statement with a complex predicate. 
+In this example, the mutated DML joins tables \texttt{t3} and \texttt{t1}, and assigns \texttt{t1.id} to \texttt{t3.ref} for the row in \texttt{t3} that satisfies the \texttt{WHERE} clause. 
+However, due to an internal logic error, MySQL fails to update the qualifying row and produces an incorrect final database state. 
+This bug does not cause a crash or raise any execution error; instead, the statement appears to execute normally while silently violating its intended semantics. 
+
+\begin{figure}[t]
+	\centering
+	\vspace{-2mm}
+	\includegraphics[width=1\linewidth]{./images/motivating example.pdf} 
+	\vspace{-9mm}
+	\caption{\textbf{An example of a logical bug detected by \toolname\ in MySQL (Bug \#120047).}}
+	\label{fig:motivating example}
+	\vspace{-5mm}
+\end{figure}
+
+
 
 % 第四段写 Detect Logical Bugs 的 Challenges，以及  Existing works
 Logical bugs in DBMSs, especially those in DML statements, are difficult to detect automatically.
@@ -29,44 +55,51 @@ This design introduces several limitations: (1) it requires restricting SQL feat
 These limitations suggest that a more direct oracle over database state transitions is needed for DML testing.
 
 % 第五段写其他相关工作
-There have also been several studies on detecting logical bugs in DBMSs~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,song2023testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}.
+There have also been several studies on detecting logical bugs in DBMSs~\cite{rigger2020detecting,rigger2020finding,rigger2020testing,tang2023detecting,jiang2024detecting,song2024detecting,hao2023pinolo,deng2025detecting}.
 For instance, \textsc{TLP}~\cite{rigger2020finding} partitions a query based on three-valued logic and checks equivalence between decomposed queries, while \textsc{NoREC}~\cite{rigger2020detecting} rewrites queries into non-optimized forms to expose inconsistencies.
-These techniques are effective at detecting logical bugs in \emph{read-only queries}, where correctness can be defined over result sets.
-However, their primary focus is on query equivalence or result-set relations, rather than the correctness of \emph{state-modifying semantics}.
+These techniques are effective at detecting logical bugs in read-only queries, where correctness can be defined over result sets.
+However, their primary focus is on query equivalence or result-set relations, rather than the correctness of state-modifying semantics.
 In contrast, our work focuses on logical bugs in DML statements, where errors manifest as incorrect database state transitions, including wrong tuple selection, unintended modifications, and incorrect value assignments.
-Such bugs occur during the execution of state-modifying operations and cannot be effectively captured by existing query-centric testing approaches.  % 篇幅不够可以删除
+%Such bugs occur during the execution of state-modifying operations and cannot be effectively captured by existing query-centric testing approaches.  % 篇幅不够可以删除
 
 % 第六段写 Key Insight
-Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, which demonstrates that approximate semantic relations can serve as effective invariants for logical bug detection, we revisit this principle in the context of state-changing SQL. 
-We term this paradigm \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT): for a statement and its over-/under-approximate variant, correctness is validated by whether their post-execution effects satisfy directional partial-order constraints over database state changes (e.g., subset/superset), rather than output equivalence. 
+Inspired by \textsc{Pinolo}~\cite{hao2023pinolo}, which demonstrates that approximate semantic relations can serve as effective oracles for logical bug detection, we revisit this principle in the context of state-changing SQL. 
+Our key insight is that, although the exact post-state of a DML statement is difficult to specify as an oracle, its relative behavior can still be reliably constrained through approximation. 
+We therefore term this paradigm \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (\textbf{ASRMT}). 
+Under \model, the semantics of a DML statement are characterized by its state effect, an abstract and comparable representation of the induced state change which we formalize in Section~\ref{sec:asrmt}. 
+Given a DML statement and its over- or under-approximate variants, their corresponding state effects are expected to satisfy a approximate relation. 
 Any violation of these approximate state-relation invariants indicates a potential logical bug.
-% 可以举个例子
+% 举个 Motivating Example 的例子，怎么检测 Logical Bug.
+For example, in Figure~\ref{fig:motivating example}, we generate a mutated \texttt{UPDATE} statement by transforming the predicate into a logically broader one. 
+Under our approximation-based reasoning, the broader statement should induce a state change that subsumes that of the original statement. 
+However, MySQL updates one row for the original DML but no row for the mutated one, thereby violating the expected inclusion relation. 
+Such a contradiction serves as clear evidence of a logical bug.
 
 % 第七段写方法 DMLScope 的方法
-%DMLScope is a differential state testing framework that detects logical bugs in DML by synthesizing approximate DML mutants, executing them from the same pre-state, and checking whether their observed state effects satisfy the expected subset/superset relation.
+Based on this paradigm, we propose \toolname, a practical testing framework for detecting logical bugs in DML statements. 
+\toolname\ instantiates \model\ through a state-oriented generate--mutate--execute--verify workflow. 
+Starting from a valid database pre-state, it first generates executable DML statements that satisfy schema and integrity constraints. 
+It then synthesizes over- and under-approximate variants using semantics-aware mutators with known approximation directions. 
+To ensure meaningful comparison, \toolname\ executes the original and mutated statements independently from the same pre-state under differential state execution. 
+After execution, it extracts state effects using representations tailored to the mutation semantics, and finally checks whether the observed effects satisfy the expected approximate state relations. 
+Any violation is reported as a potential logical bug.
 
 % 第八段写评估
+We evaluate \toolname\ on six widely used and extensively tested DBMSs: MySQL, MariaDB, MonetDB, Percona, DuckDB, and TiDB.
+Overall, \toolname\ detected \logical\ logical bugs across all tested systems, including 5 in MySQL, 3 in MariaDB, 5 in MonetDB, 5 in Percona, 1 in DuckDB, and 2 in TiDB. 
+In addition, it also triggered 8 abnormal errors and 18 crashes, yielding 47 unique bugs in total. 
+Among all reported bugs, \confirmed\ have been confirmed by developers, and \fixed\ have already been fixed. 
+These results demonstrate the effectiveness of \toolname\ in finding bugs in DBMSs.
+% 参考 EET 或者 Pinolo 的写法。
+Overall, we make the following contributions:
+\begin{itemize}[leftmargin=10pt]
+	\item We propose Approximate State-Relation--Driven Metamorphic Testing, a novel testing paradigm for detecting logical bugs in state-modifying SQL statements. It characterizes DML semantics through state effects and validates correctness by checking approximate state relations over database state transitions.
+	
+	\item We implement \toolname, a practical testing framework that systematically generates executable DML statements, synthesizes approximate variants, performs differential state execution, and verifies state-effect relations to detect logical bugs.
+	
+	\item We evaluate \toolname\ on six real-world DBMSs. In total, we found \confirmed\ bugs including \logical\ logical bugs. To further facilitate research on DBMS testing, we open-source the tool at \url{https://anonymous.4open.science/r/DMLScope-9F03/}.  
+\end{itemize}
 
-%\begin{figure}[t]
-%	\centering
-%	%	\vspace{-3mm}
-%	\includegraphics[width=1\linewidth]{./images/motivating_example.pdf} 
-%	\vspace{-6mm}
-%	\caption{\textbf{Queries exposing a logical bug in a built-in SQL function in Percona Server.}}
-%	\label{fig:motivating example}
-%	\vspace{-5mm}
-%\end{figure}
-
-
-% 第九段 Contribution
-% Contribution
-%Overall, we make the following contributions:
-%\begin{itemize}[leftmargin=10pt]
-%	\item We propose a novel methodology \textit{Function Property--Driven Metamorphic Testing} for systematically detecting logical bugs in built-in SQL functions.
-%	\item We implement \toolname\ as a DBMS testing tool, which automatically generates, mutates, and verifies SQL queries based on \textit{Function Property--Driven Metamorphic Testing}, enabling the detection of logical bugs in SQL functions.
-%	\item We evaluate \toolname\ on six real-world DBMSs and find \reported\ previously unknown logical bugs.  
-%	To further facilitate research on DBMS testing, we open-source \toolname\ at \url{https://anonymous.4open.science/status/FPMT-DBTesting-D3CA}.
-%\end{itemize}
 
 
 

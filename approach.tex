@@ -1,9 +1,10 @@
 \section{Approximate State-Relation–Driven Metamorphic Testing}
 \label{sec:asrmt}
 
-To address the test oracle problem for state-modifying SQL statements, we propose \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (\textbf{ASRMT}), a metamorphic testing paradigm that generalizes prior approximation-based techniques \textsc{Pinolo}~\cite{hao2023pinolo} from query results to database state transitions. 
-Unlike existing approaches that reason about equivalence or inclusion relations over result sets, ASRMT defines correctness over the effects of DML statements on database states. 
-This shift is essential for testing data manipulation language (DML) statements, whose semantics are reflected by persistent state changes rather than returned tuples.
+We now present \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT), our core paradigm for detecting logical bugs in state-modifying SQL statements. 
+Unlike prior approximation-based techniques such as \textsc{Pinolo}~\cite{hao2023pinolo}, which reason about relations over query results, ASRMT defines correctness over database state transitions. 
+The key idea is to characterize DML semantics through state effects and to validate correctness by checking approximate relations between the effects of related statements. 
+In the following, we formalize state effects, define approximate state relations, and present the corresponding test oracle.
 
 \subsection{State Effect}
 
@@ -12,7 +13,7 @@ Let $S$ denote a database state, and let $q$ be a DML statement. The execution o
 \llbracket q \rrbracket(S) \rightarrow S'.
 \]
 
-To characterize the observable behavior of a DML statement, we introduce the notion of \emph{state effect}.
+To characterize the observable behavior of a DML statement, we introduce the notion of state effect.
 
 \begin{definition}[State Effect]
 	Given a DML statement $q$ and a database state $S$, the state effect of $q$ over $S$, denoted by $E(q,S)$, is an abstract set-valued representation of the observable effect induced by executing $q$ on $S$.
@@ -67,11 +68,11 @@ The notion of state effect is intentionally abstract. In our paper, it is instan
 	thus determining the intended target set independent of actual value updates.
 \end{example}
 
-
 The matched-row effect captures the \emph{intended target set} of a DML statement. It is suitable when the mutation primarily changes row-selection semantics, such as predicate strengthening/weakening, join-condition mutation, or other transformations that mainly affect which target rows should be selected.
 
 \begin{definition}[Changed-Row Effect]
-	Given a DML statement $q$ and a database state $S$, let $S'=\llbracket q \rrbracket(S)$ be the post-state produced by executing $q$ on $S$. The changed-row effect of $q$, denoted by $E_c(q,S)$, is the set of target-row tokens obtained by comparing $S$ and $S'$ and extracting the rows whose observable states differ before and after execution.
+%	Given a DML statement $q$ and a database state $S$, let $S'=\llbracket q \rrbracket(S)$ be the post-state produced by executing $q$ on $S$. The changed-row effect of $q$, denoted by $E_c(q,S)$, is the set of target-row tokens obtained by comparing $S$ and $S'$ and extracting the rows whose observable states differ before and after execution.
+	Given a DML statement $q$ and a database state $S$, the changed-row effect of $q$, denoted by $E_c(q,S)$, is the set of target-row tokens corresponding to the rows whose observable states differ before and after executing $q$ on $S$.
 \end{definition}
 
 \begin{example}
@@ -105,7 +106,7 @@ The matched-row effect captures the \emph{intended target set} of a DML statemen
 	\end{aligned}
 	\]
 	
-	Let $S'=\llbracket q \rrbracket(S)$ be the post-state after execution.  
+%	Let $S'=\llbracket q \rrbracket(S)$ be the post-state after execution.  
 	The newly inserted rows correspond to primary keys $\{5,6\}$.  
 	Let $h_5$ and $h_6$ denote their normalized row summaries.  
 	We use a normalization function $\mathit{row}(\cdot)$ that maps a tuple to a canonical representation (e.g., a hash of its attribute values).
@@ -116,20 +117,19 @@ The matched-row effect captures the \emph{intended target set} of a DML statemen
 	
 	Intuitively, the effect cannot be derived purely from structure, and must be obtained by comparing the database states before and after execution.
 \end{example}
-The changed-row effect captures the \emph{actual post-execution effect} of a DML statement. It is necessary when the mutation may influence value assignments, tuple multiplicity, insertion/deletion behavior, or other effects that cannot be determined reliably from the statement structure alone.
+The changed-row effect captures the actual post-execution effect of a DML statement. It is necessary when the mutation may influence value assignments, tuple multiplicity, insertion/deletion behavior, or other effects that cannot be determined reliably from the statement structure alone.
 
 \textbf{Effect Abstraction Selection.}
 Accordingly, the abstract state effect $E(q,S)$ used by our approach is instantiated as either $E_m(q,S)$ or $E_c(q,S)$, depending on the comparison strategy. 
 The distinction is essential: $E_m(q,S)$ characterizes which target rows are supposed to be affected according to the statement structure, whereas $E_c(q,S)$ characterizes which rows are actually changed in the database after execution.
 
-More importantly, the choice between $E_m(q,S)$ and $E_c(q,S)$ is not determined merely by the DML type, but by the semantics targeted by the mutation and the robustness of the corresponding effect abstraction. 
-In general, $E_c(q,S)$ is more expressive, because it reflects actual post-execution outcomes and can capture not only row selection but also value updates, insertions, deletions, and multiplicity-related effects. 
+The choice between $E_m(q,S)$ and $E_c(q,S)$ is not determined merely by the DML type, but by the semantics targeted by the mutation and the robustness of the corresponding effect abstraction. 
+In general, $E_c(q,S)$ is more expressive, because it reflects post-execution outcomes and can capture not only row selection but also value updates, insertions, deletions, and multiplicity-related effects. 
 However, this stronger expressiveness may also introduce irrelevant execution-level variability. 
 For example, in join-based \texttt{UPDATE} statements, one-to-many matches or unstable source-to-target mappings may lead to ambiguous value assignments, even when the intended target-row boundary is clear. 
 In such cases, changed-row effects may become noisy or unreliable with respect to the mutation semantics under test. 
 By contrast, $E_m(q,S)$ is less expressive but often more stable: it abstracts away concrete value changes and focuses only on the structurally intended target set. 
-We next provide a concrete example to illustrate this trade-off and
-Section~\ref{subsec:State-Effect Extraction} then presents the detailed strategy for selecting the effect abstraction and for extracting state effects in practice.
+We next provide a concrete example to illustrate this trade-off and Section~\ref{subsec:State-Effect Extraction} then presents the detailed strategy for selecting the effect abstraction and for extracting state effects in practice.
 
 \begin{example}
 	Consider the following tables in database state $S$:
@@ -158,7 +158,7 @@ Section~\ref{subsec:State-Effect Extraction} then presents the detailed strategy
 		q : &\; \text{\textbf{UPDATE} } t_1
 		\text{ \textbf{JOIN} } t_2
 		\text{ \textbf{ON} } t_1.c_1 = t_2.c_1 
-		\text{ \textbf{SET} } t_1.c_2 = t_2.c_3 .
+		\text{ \textbf{SET} } t_1.c_2 = t_2.c_3 
 	\end{aligned}
 	\]
 	
@@ -176,9 +176,9 @@ Section~\ref{subsec:State-Effect Extraction} then presents the detailed strategy
 	E_c(q,S)=\{t_1\!:\!1\!:\!\mathit{ROW}(h_{200}),\; t_1\!:\!2\!:\!\mathit{ROW}(h_{300})\}.
 	\]
 	
-	This example shows that changed-row effects may be more expressive but also less stable, since they may incorporate assignment-level ambiguity that is irrelevant when the mutation only targets row-selection semantics. 
-	Such ambiguity may arise from DBMS-specific source-row selection policies or from execution-dependent factors, such as different join evaluation orders or execution plans, which can lead the same target row to be assigned from different matching source rows.
-	In contrast, matched-row effects remain stable because they only record the structurally intended target rows. 
+	This example shows that changed-row effects are more expressive but less stable, since they may incorporate assignment-level ambiguity that is irrelevant when the mutation targets only row-selection semantics. 
+	Such ambiguity may arise from DBMS-specific source-row selection policies or execution-dependent factors, such as different join evaluation orders or execution plans, which can lead the same target row to be assigned from different matching source rows.
+	In contrast, matched-row effects remain stable because they only record the structurally intended target rows.
 \end{example}
 
 \subsection{Approximate State Relation}
@@ -258,6 +258,25 @@ To systematically construct DML statements with predictable approximation relati
 	The direction of the induced relation determines whether $\mu$ is an under- or over-approximate mutator.
 \end{definition}
 
+%\begin{example}
+%	Consider the statement
+%	\[
+%	q : \text{\textbf{DELETE FROM} } t
+%	\text{ \textbf{WHERE} } c_1 > 1.
+%	\]
+%	
+%	A mutator may weaken the predicate to
+%	\[
+%	q' : \text{\textbf{DELETE FROM} } t
+%	\text{ \textbf{WHERE} } c_1 \ge 1.
+%	\]
+%	
+%	This transformation enlarges the set of affected rows, resulting in
+%	\[
+%	q \preceq_S q'.
+%	\]
+%\end{example}
+
 \begin{example}
 	Consider the statement
 	\[
@@ -265,19 +284,21 @@ To systematically construct DML statements with predictable approximation relati
 	\text{ \textbf{WHERE} } c_1 > 1.
 	\]
 	
-	A mutator may weaken the predicate to
+	Let \(n\) be the comparison predicate \(c_1 > 1\), and let \(\mu\) be an approximate mutator that weakens the comparison operator \(>\) to \(\ge\). 
+	Applying \(\mu\) to \(q\) yields
 	\[
-	q' : \text{\textbf{DELETE FROM} } t
+	q' = \mu(q) : \text{\textbf{DELETE FROM} } t
 	\text{ \textbf{WHERE} } c_1 \ge 1.
 	\]
 	
-	This transformation enlarges the set of affected rows, resulting in
+	Since this transformation enlarges the set of affected rows, we have
 	\[
 	q \preceq_S q'.
 	\]
+	Therefore, \(\mu\) is an over-approximate mutator in this example.
 \end{example}
 
-Approximate mutators provide a principled way to generate related statements whose semantic relationships are known \emph{a priori}, which is essential for constructing effective metamorphic tests.
+Approximate mutators provide a way to generate related statements whose semantic relationships are known \emph{a priori}, which is essential for constructing effective metamorphic tests.
 However, a mutation typically affects only a local component of a statement. We therefore introduce approximation propagation to characterize how local changes determine global state-effect relations.
 
 \begin{definition}[Approximation Propagation]
@@ -309,10 +330,11 @@ However, a mutation typically affects only a local component of a statement. We 
 	\text{ \textbf{WHERE} } \neg (c_2 > 10).
 	\]
 	
-	Since the predicate $\neg(c_2 > 10)$ is equivalent to $c_2 \le 10$, the affected rows are
+	If the state effect is instantiated as the matched-row effect, then the affected rows are
 	\[
 	E(q,S)=\{t\!:\!1,\; t\!:\!2\}.
 	\]
+	since the predicate $\neg(c_2 > 10)$ is equivalent to $c_2 \le 10$.
 	
 	Now consider a local mutation that replaces the comparison operator $>$ with $\ge$ inside the negation:
 	\[
@@ -364,16 +386,17 @@ Based on the above definitions, \model\ uses inclusion relations over state effe
 
 This formulation enables approximation-based reasoning over persistent database behaviors, extending metamorphic testing from query correctness to state-transition correctness.
 
-\subsection{Discussion}
-\model\ differs fundamentally from prior approximation-based metamorphic testing frameworks \textsc{Pinolo}~\cite{hao2023pinolo}, which are designed for read-only queries and define approximation relations over returned result sets. 
-For DML statements, however, correctness is no longer determined by query outputs, but by how execution changes the underlying database state. 
-This shift makes it necessary to redefine the semantic object of approximation as state effect, rather than tuples in a result set, and to reason about approximation in terms of state transitions. 
-Moreover, because DML semantics involve both intended target-row selection and actual post-execution changes, \model\ must support different effect abstractions and propagate local mutations to the statement level under state-based semantics, which substantially distinguishes it from prior read-only formulations.
+\textbf{Discussion.}
+\model\ differs fundamentally from prior approximate metamorphic testing framework \textsc{Pinolo}~\cite{hao2023pinolo}, which target read-only queries and define approximation relations over result sets. 
+For DML statements, correctness is determined not by query outputs, but by how execution changes the underlying database state. 
+This shift requires redefining the semantic object of approximation as state effect and reasoning about approximation in terms of state transitions. 
+Moreover, because DML semantics involve both intended target-row selection and actual post-execution changes, \model\ must support multiple effect abstractions and propagate local mutations under state-based semantics.
+
 
 \section{Approach}
 \label{sec:approach}
 
-Based on the \model\ model introduced in Section~\ref{sec:asrmt}, we design \toolname, a practical testing framework for detecting logical bugs in DML statements.
+Based on the \model\ model, we design \toolname, a practical testing framework for detecting logical bugs in DML statements.
 The key idea of \toolname\ is to instantiate approximate state relations over executable DML statements, execute the original and mutated statements from the same initial database state, and check whether their observed state effects satisfy the expected inclusion relation.
 In the following, we present the overall workflow of \toolname\ and then describe each core component in detail.
 
@@ -386,7 +409,7 @@ Next, all statements are executed under differential state execution, where each
 Finally, \toolname\ extracts state-effect tokens and checks whether the observed effects satisfy the expected approximate state relation.
 Any violation of the expected relation indicates a potential logical bug.
 
-In the following subsections, we describe these components in detail, including database initialization (Section~\ref{subsec:Database Initialization}), original DML generation (Section~\ref{subsec:Original DML Generation}), approximate DML synthesis (Section~\ref{subsec:Approximate DML Synthesis}), differential state execution (Section~\ref{subsec:Differential State Execution}), state-effect extraction (Section~\ref{subsec:State-Effect Extraction}), and approximate state relation checking (Section~\ref{subsec:Approximate State Relation Checking}).
+%In the following subsections, we describe these components in detail, including database initialization (Section~\ref{subsec:Database Initialization}), original DML generation (Section~\ref{subsec:Original DML Generation}), approximate DML synthesis (Section~\ref{subsec:Approximate DML Synthesis}), differential state execution (Section~\ref{subsec:Differential State Execution}), state-effect extraction (Section~\ref{subsec:State-Effect Extraction}), and approximate state relation checking (Section~\ref{subsec:Approximate State Relation Checking}).
 
 \begin{figure*}[t]
 	\centering
@@ -449,6 +472,7 @@ Finally, the algorithm performs structural checking, serialization, and executio
 It first verifies that the instantiated AST remains structurally complete and internally consistent (Line~23), and then serializes it into a concrete SQL statement $q$ (Line~24).
 The statement is accepted only if it can be executed successfully on the current pre-state $S$ (Lines~25--26); otherwise, the generation process restarts (Lines~27--28).
 
+%\vspace{-2mm}
 \begin{algorithm}[t]
 	\caption{Original DML Generation}
 	\footnotesize
@@ -491,6 +515,7 @@ The statement is accepted only if it can be executed successfully on the current
 		\EndIf
 	\end{algorithmic}
 \end{algorithm}
+%\vspace{-2mm}
 
 \begin{figure}[t]
 	\scriptsize
@@ -626,8 +651,8 @@ As a result, the final original DML statement  is structurally complete, type-co
 \label{subsec:Approximate DML Synthesis}
 
 
-Given an executable original DML statement, \toolname\ next synthesizes a set of approximate variants whose state effects are expected to follow a known directional relation with respect to the seed statement, i.e., either over-approximation or under-approximation.
-This process is mutation-based: instead of generating new statements from scratch, the algorithm systematically applies approximate mutators to selected components of the original DML.
+Given an executable original DML statement, \toolname\ next synthesizes a set of approximate variants whose state effects are expected to follow a known approximate relation with respect to the seed statement.
+Instead of generating new statements from scratch, the algorithm systematically applies approximate mutators to selected components of the original DML.
 
 Table~\ref{tab:dml_mutators} summarizes some representative approximate mutators used in our synthesis phase.
 Our design follows the general spirit of \textsc{Pinolo}~\cite{hao2023pinolo}, which organizes mutators around semantic approximation, while extending it to better support DML-specific constructs.
@@ -697,8 +722,8 @@ In particular, when the mutation site appears in direction-reversing contexts, s
 		& \(A\ \texttt{UNION}\ B\)
 		& \(A\ \texttt{INTERSECT}\ B\) \\
 		
-		& \(A\)
-		& \(A\ \texttt{EXCEPT}\ B\) \\
+%		& \(A\)
+%		& \(A\ \texttt{EXCEPT}\ B\) \\
 		
 		\midrule
 		
@@ -706,8 +731,8 @@ In particular, when the mutation site appears in direction-reversing contexts, s
 		& \(P\)
 		& \texttt{FALSE} \\
 		
-		& \texttt{TRUE}
-		& \(P\) \\
+%		& \texttt{TRUE}
+%		& \(P\) \\
 		
 		& \(P \land Q\)
 		& \(P \lor Q\) \\
@@ -727,8 +752,8 @@ In particular, when the mutation site appears in direction-reversing contexts, s
 		& \(x\ \texttt{BETWEEN}\ l\ \texttt{AND}\ r\)
 		& \(x \ge l\) \\
 		
-		& \(e\ \odot\ \texttt{ANY}(r)\)
-		& \(e\ \odot\ \texttt{ALL}(r)\) \\
+%		& \(e\ \odot\ \texttt{ANY}(r)\)
+%		& \(e\ \odot\ \texttt{ALL}(r)\) \\
 		
 		\midrule
 		
@@ -744,6 +769,7 @@ In particular, when the mutation site appears in direction-reversing contexts, s
 		
 		\bottomrule
 	\end{tabular}
+	\vspace{-3mm}
 \end{table}
 
 \subsection{Differential State Execution}
@@ -795,7 +821,13 @@ Given the execution results $\mathcal{X} = \{(q_i, S_i')\}$ produced in Section~
 For each $q_i$, it first parses the statement into a structured representation (Line~2), which includes its statement kind, target table, primary key, and (if available) a derived matching query (\texttt{match\_sql}).
 Based on the mutation operator and its syntactic context, the algorithm then determines an extraction strategy (Lines~3--5), which specifies both the extraction basis (\texttt{matched\_rows} or \texttt{changed\_rows}) and whether only primary keys should be considered.
 % 怎么判断选择 changed rows 或者 matched rows的呢
-\lin{add more detailes about effect selection}
+Specifically, \toolname\ adopts a stability-aware selection strategy for effect extraction.
+It first executes the derived \texttt{match\_sql} query and analyzes the mapping cardinality between source tuples and target primary keys.
+If multiple matched rows correspond to the same target primary key, the statement exhibits a one-to-many mapping from source-side matches to target rows.
+In such cases, the final value written to a target row may depend on DBMS-specific execution details, such as join order or plan selection, making the concrete state change unstable or non-deterministic.
+To avoid introducing such execution-level variability into the oracle, the algorithm selects the \texttt{matched\_rows} strategy, which focuses only on the structurally matched target-row set.
+Otherwise, when each target row corresponds to at most one matched source tuple, the induced value assignment is deterministic, and the algorithm selects the \texttt{changed\_rows} strategy to capture precise value-level state changes.
+%  提取策略
 The extraction follows two alternative paths depending on the selected strategy.
 If the \texttt{matched\_rows} strategy is applicable, the algorithm derives the target-row set directly from the statement structure (Lines~6--7).
 Specifically, it executes the derived \texttt{match\_sql} query to obtain the primary keys of all structurally matched rows, and converts them into tokens of the form $\texttt{table:pk}$.
