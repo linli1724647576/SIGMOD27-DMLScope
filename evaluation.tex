@@ -11,7 +11,7 @@
 
 \subsection{Experimental Setup}
 \textbf{Tested DBMS.}
-We evaluate \toolname\ on 6 widely used DBMSs, as summarized in Table~\ref{table:testdbms}. 
+We evaluate \toolname\ on six widely used DBMSs, as summarized in Table~\ref{table:testdbms}. 
 These DBMSs were chosen based on their popularity and extensive use in real-world applications. 
 %MySQL and MariaDB are long-established and widely deployed relational DBMSs, while Percona represents an industrial MySQL-derived system. 
 %TiDB is a modern distributed SQL database, and DuckDB and MonetDB are widely recognized analytical DBMSs with strong influence in modern data processing workloads. 
@@ -26,8 +26,8 @@ We run \toolname\ on each DBMS for 24 hours.
 	\caption{\textbf{The demographics of the DBMSs under test}}
 	\label{table:testdbms}
 	\small
-	\vspace{-2mm}
-	\resizebox{\dimexpr\textwidth/2\relax}{!}{
+	\vspace{-3mm}
+	\resizebox{\columnwidth}{!}{
 		\begin{tabular}{lcccc}
 			\toprule
 			\textbf{DBMS}       & \textbf{Version}           & \textbf{GitHub Stars} & \textbf{DB-Engine}         & \textbf{First Release} \\ 
@@ -41,7 +41,7 @@ We run \toolname\ on each DBMS for 24 hours.
 			\bottomrule
 		\end{tabular}
 	}
-	\vspace{-2mm}
+	\vspace{-3mm}
 \end{table}
 
 \textbf{Environment}. 
@@ -107,16 +107,17 @@ These results show that our structure-guided and constraint-aware generation str
 
 \textbf{Bug Diversity.}
 We analyze the 21 confirmed logical bugs from two perspectives: the diversity of DML types and the structural complexity of the triggering statements. 
-In terms of DML types, the majority of bugs are caused by \texttt{UPDATE} statements (16/21), while the remaining involve \texttt{DELETE} (4/21) and \texttt{INSERT} (1/21), indicating that value-modifying operations are particularly error-prone. 
-From a structural perspective, most bugs are triggered by complex query constructs: 18 out of 21 bugs involve subqueries, 8 involve joins, 10 involve set operations, and 14 involve logical predicates. 
+In terms of DML types, the majority of bugs are caused by \texttt{UPDATE} statements (15/21), while the remaining involve \texttt{DELETE} (4/21) and \texttt{INSERT} (2/21), indicating that value-modifying operations are particularly error-prone. 
+From a structural perspective, most bugs are triggered by complex query constructs: 18 out of 21 bugs involve subqueries, 9 involve joins, 9 involve set operations, and 16 involve logic operators. 
 These results show that DML logical bugs are highly correlated with rich query contexts and interactions among multiple SQL operators, rather than simple statements. 
 Such complexity poses a significant challenge to existing approaches like \textsc{DQE}, which are limited to relatively simple and aligned query patterns and cannot effectively support complex constructs such as nested subqueries and set operations. 
 In contrast, \toolname\ can systematically generate structurally rich DML statements and leverage state-relation-based oracles to robustly reason about their effects, enabling the detection of these complex and previously overlooked logical bugs.
 
 \begin{table}[t]
 	\centering
-	\caption{\textbf{Feature distribution of detected DML logical bugs.}}
 	\vspace{-2mm}
+	\caption{\textbf{Feature distribution of detected DML logical bugs.}}
+	\vspace{-3mm}
 	\label{tab:bug_pattern}
 	\resizebox{\columnwidth}{!}{
 		\begin{tabular}{ccccccc}
@@ -154,28 +155,32 @@ In contrast, \toolname\ can systematically generate structurally rich DML statem
 			\bottomrule
 		\end{tabular}
 	}
-	\vspace{-3mm}
+	\vspace{-4mm}
 \end{table}
 
 \textbf{Case Study.}
+Due to space limitations, we present additional representative and interesting bug cases at \url{https://anonymous.4open.science/r/DMLScope-9F03/}. \lin{add a url and false positive}
 
 % RQ3：Comoporehensive Bug Analysis
 	% Bug Statements：Update、Delete、Insert (Rules) 一个大表  id，bug id，type，（rule），EET的feature
 % Selected Bugs
 %   Update 、 Delete 、 Insert 各一个
 
+\vspace{-1mm}
 \subsection{Comparative Study}
 \label{sec:eval-compare}
-To demonstrate that \toolname\ can detect DML logical bugs missed by existing methods, we conduct our comparative study from two perspectives: tool level and oracle level. 
+To illustrate the effectiveness of our approach, we conduct our comparative study from two perspectives: tool level and oracle level. 
 At the tool level, we compare \toolname\ with six representative logical bug detection approaches, including \textsc{PQS}~\cite{rigger2020testing}, \textsc{NoREC}~\cite{rigger2020detecting}, \textsc{TLP}~\cite{rigger2020finding}, \textsc{DQE}~\cite{song2023testing}, \textsc{Pinolo}~\cite{hao2023pinolo}, and \textsc{EET}~\cite{jiang2024detecting}, by running each tool on the latest version of each supported DBMS for 24 hours. 
 Since the baseline methods do not support all DBMSs tested by \toolname, the comparison is restricted to the DBMSs commonly supported by \toolname\ and each baseline method. 
-As shown in Table~\ref{tab:tool-support-dbms}, \toolname\ consistently outperforms the baselines in terms of triggered logical bugs, finding 5, 3, 1, 10, 7, and 4 more bugs than \textsc{PQS}, \textsc{NoREC}, \textsc{TLP}, \textsc{DQE}, \textsc{Pinolo}, and \textsc{EET}, respectively, where each increment is computed only on the commonly supported DBMSs. Overall, \toolname\ triggers 21 logical bugs within 24 hours, whereas all baseline tools together trigger only 6.
-At the oracle level, we analyze whether existing testing oracles are capable of detecting the logical bugs uncovered by \toolname. 
+As shown in Table~\ref{tab:tool-support-dbms}, \toolname\ consistently outperforms the baselines in terms of triggered logical bugs, finding 5, 3, 1, 10, 7, and 4 more bugs than \textsc{PQS}, \textsc{NoREC}, \textsc{TLP}, \textsc{DQE}, \textsc{Pinolo}, and \textsc{EET}, respectively, where each increment is computed only on the commonly supported DBMSs. 
+%
+At the oracle level, we manually analyze whether existing testing oracles are capable of detecting the logical bugs uncovered by \toolname. 
+The results show that the \logical\ bugs detected by \toolname\ are entirely disjoint from the 12 logical bugs triggered by the baseline tools.
 From a theoretical perspective, the \logical\ logical bugs detected by \toolname\ fundamentally rely on reasoning about state transitions, including which rows are affected and how their values are modified. 
 However, existing query-centric approaches, such as \textsc{PQS}, \textsc{NoREC}, \textsc{TLP}, \textsc{Pinolo}, and \textsc{EET}, define correctness over returned query results and therefore cannot capture errors that only manifest in persistent state changes. 
 Although \textsc{DQE} targets DML statements, its oracle is based on cross-statement row-access consistency and mainly checks whether related statements access the same tuples, making it insufficient for detecting value-level errors and many complex state transitions induced by joins, subqueries, and other rich DML constructs. 
 As a result, the logical bugs detected by \toolname\ are not observable under the oracles used by these baseline approaches. 
-This explains why the \logical\ logical bugs detected by \toolname\ are entirely disjoint from the 6 logical bugs triggered by the baselines, and highlights that \toolname\ explores a different and previously untested space of DML correctness. 
+This highlights that \toolname\ explores a different and previously untested space of DML correctness.
 %At the oracle level, we further analyze why \toolname\ can uncover bugs missed by existing tools.  
 %The \logical\ logical bugs detected by \toolname\ are entirely disjoint from the 6 logical bugs triggered by the baselines, indicating that \toolname\ discovers a different class of DML bugs. 
 %This advantage stems from its stronger oracle design. 
@@ -195,9 +200,9 @@ This explains why the \logical\ logical bugs detected by \toolname\ are entirely
 
 \begin{table}[t]
 	\centering
-	\vspace{-2mm}
+%	\vspace{-2mm}
 	\caption{\textbf{Number of logical bugs triggered in 24 hours.}}
-	\vspace{-2mm}
+	\vspace{-3mm}
 	\small
 	\label{tab:tool-support-dbms}
 	\resizebox{\columnwidth}{!}{
