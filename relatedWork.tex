@@ -1,4 +1,4 @@
-%\vspace{-2mm}
+\vspace{-2mm}
 \section{Related Work}
 \label{sec:Related Work}
 
@@ -9,7 +9,7 @@ For example, \textsc{NoREC}~\cite{rigger2020detecting} transforms an optimizable
 %\textsc{PQS}~\cite{rigger2020testing} constructs queries expected to retrieve a specific pivot row, while \textsc{DQE}~\cite{song2023testing} detects logical bugs by comparing whether different SQL queries with the same predicate access the same rows in the database.
 %\textsc{Pinolo}~\cite{hao2023pinolo} generalizes this paradigm through set-level approximation, where predicates are relaxed or restricted to generate over- and under-approximate queries, and correctness is judged by inclusion or containment relations between result sets.
 %\textsc{TQS}~\cite{tang2023detecting} decomposes wide tables into smaller ones and uses the base table as ground truth for correctness validation.  
-\textsc{EET}~\cite{jiang2024detecting} applies expression-preserving transformations, and \textsc{Radar}~\cite{song2024detecting} compares query results between databases with and without metadata to identify semantic flaws.  
+%\textsc{EET}~\cite{jiang2024detecting} applies expression-preserving transformations, and \textsc{Radar}~\cite{song2024detecting} compares query results between databases with and without metadata to identify semantic flaws.  
 %\textsc{EDC}~\cite{deng2025detecting} detects logical bugs by substituting expressions with precomputed equivalent data and checking for inconsistent results, while \textsc{CODDTest}~\cite{zhang2025constant} leverages constant folding and propagation to generate equivalent queries.  
 %
 As discussed in Section~\ref{sec:intro} and Section~\ref{sec:background and motivation}, these approaches mainly focus on validating query correctness through returned results, such as equivalence, containment, or cross-query consistency. 
@@ -26,16 +26,16 @@ For example, \textsc{SQLsmith}~\cite{sqlsmith} is a grammar-based DBMS fuzzer th
 %It uses a random walk approach to explore the SQL syntax and generate a wide range of queries.
 \textsc{SQUIRREL}~\cite{zhong2020squirrel} is a mutation-based DBMS fuzzer which introduces an intermediate representation for SQL queries and models dependencies between SQL statements, enabling the generation of queries that contain multiple SQL operations. 
 %\textsc{Griffin}~\cite{fu2022griffin} uses a grammar-free mutation approach, where it mutates SQL queries based on DBMS state information encapsulated in a metadata graph. 
-\textsc{QTRAN}~\cite{lin2025qtran} is a LLM-based approach that can automatically translate test cases from other DBMSs.
+%\textsc{QTRAN}~\cite{lin2025qtran} is a LLM-based approach that can automatically translate test cases from other DBMSs.
 %\textsc{DynSQL}~\cite{jiang2023dynsql} takes a dynamic approach by interacting with the DBMS to capture the latest state information, allowing for the incremental generation of valid and complex queries.
 These techniques aim to prevent semantic errors and improve the diversity of generated queries. 
-In addition to general query generation, some approaches have been specifically designed to aid in bug detection. 
-\textsc{SQLRight}~\cite{liang2022detecting} leverages code coverage feedback to enhance test-case generation. 
-\textsc{QPG}~\cite{ba2023testing} takes a different approach by recording the query plans covered during DBMS testing and prioritizing the mutation of queries that trigger new query plans. 
+In addition to general query generation, some approaches~\cite{liang2022detecting,ba2023testing} have been specifically designed to aid in bug detection. 
+For example, \textsc{SQLRight}~\cite{liang2022detecting} leverages code coverage feedback to enhance test-case generation. 
+%\textsc{QPG}~\cite{ba2023testing} takes a different approach by recording the query plans covered during DBMS testing and prioritizing the mutation of queries that trigger new query plans. 
 %
 Different from these works, \toolname\ does not primarily target general-purpose SQL generation or coverage improvement. 
 Instead, it focuses on generating complex and semantically valid DML seeds and approximate DML variants for testing state-modifying semantics. 
-Its main goal is not merely to increase query diversity, but to expose subtle logical bugs in DML execution by checking whether state effects satisfy expected semantic relations. 
+Its main goal is not merely to increase query diversity, but to expose subtle logical bugs in DML execution by checking whether state effects satisfy expected relations. 
 %From this perspective, \toolname\ is complementary to existing DBMS test-case generation techniques: prior generators can serve as upstream sources of diverse and valid SQL inputs, while \toolname\ contributes a DML-specific testing methodology and oracle for detecting state-transition bugs.
 
 

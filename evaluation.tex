@@ -35,7 +35,7 @@ We run \toolname\ on each DBMS for 24 hours.
 			MySQL~\cite{mysql}      & 9.5.0             & 11.9K        & 2                 & 1995          \\
 			MariaDB~\cite{mariadb}    & 12.2.2 & 6.7K        & 13                & 2009          \\
 			MonetDB~\cite{monetdb}  & 11.55.3 & 458 & 150  & 2004          \\
-			Percona~\cite{percona}      & 8.0.43-34       & 1.2K         & 122               & 2008          \\
+			Percona~\cite{percona}      & 8.4.8-8       & 1.2K         & 122               & 2008          \\
 			DuckDB~\cite{duckdb}    & 1.5.0  & 37.3K    & 43               & 2018          \\
 			TiDB~\cite{tidb}       & 8.5.5 & 39.4K        & 85                & 2016          \\
 			\bottomrule
@@ -52,14 +52,14 @@ The server operates under the Ubuntu 20.04 OS, with the 5.4.0-135-generic versio
 \label{sec:eval-bugs}
 
 Table~\ref{tab:bug_summary} summarizes the unique bugs found by \toolname\ across six DBMSs. 
-Overall, \toolname\ detected 21 logical bugs, 8 abnormal errors, and 18 crashes, yielding 47 unique bugs in total. 
-The logical bugs are distributed across all tested systems, including 5 in MySQL, 3 in MariaDB, 5 in MonetDB, 5 in Percona, 1 in DuckDB, and 2 in TiDB. 
-Among all reported bugs, 47 have been confirmed by developers, and 27 have already been fixed. 
+Overall, \toolname\ detected 25 logical bugs, 8 abnormal errors, and 18 crashes, yielding 51 unique bugs in total. 
+The logical bugs are distributed across all tested systems, including 5 in MySQL, 3 in MariaDB, 9 in MonetDB, 5 in Percona, 1 in DuckDB, and 2 in TiDB. 
+Among all reported bugs, 51 have been confirmed by developers, and 31 have already been fixed. 
 These results show that \toolname\ can effectively uncover severe correctness issues even in mature and extensively tested DBMSs.
 
 \begin{table}[t]
 	\centering
-	\caption{\toolname\ founded 45 unique bugs in six DBMSs.}
+	\caption{\toolname\ founded 51 unique bugs in six DBMSs.}
 	\vspace{-2mm}
 	\label{tab:bug_summary}
 	\resizebox{\columnwidth}{!}{
@@ -71,17 +71,43 @@ These results show that \toolname\ can effectively uncover severe correctness is
 			\midrule
 			MySQL      & 5 & 0 & 3 & 8 & 0 \\
 			MariaDB       & 3 & 0 & 0 & 3  & 0 \\
-			MonetDB & 5 & 8 & 12 & 25 & 25 \\
+			MonetDB & 9 & 8 & 12 & 29 & 29 \\
 			Percona      & 5 & 0 & 1 & 6 & 0 \\
 			DuckDB      & 1 & 0 & 2 & 3 & 2 \\
 			TiDB        & 2 & 0 & 0 & 2  & 0 \\
 			\midrule
-			Total       & 21 & 8 & 18 & 47 & 27 \\
+			Total       & 25 & 8 & 18 & 51 & 31 \\
 			\bottomrule
 		\end{tabular}
 	}
 	\vspace{-3mm}
 \end{table}
+
+%\begin{table}[t]
+%	\centering
+%	\caption{\toolname\ found \textcolor{red}{47} unique bugs in six DBMSs.}
+%	\vspace{-2mm}
+%	\label{tab:bug_summary}
+%	\resizebox{\columnwidth}{!}{
+%		\begin{tabular}{lccccccc}
+%			\toprule
+%			\multirow{2}{*}{\textbf{DBMS}} & \multicolumn{3}{c}{\textbf{Bug type}} & \multicolumn{3}{c}{\textbf{Bug status}} \\
+%			\cmidrule(lr){2-4} \cmidrule(lr){5-7}
+%			& \textbf{Logical} & \textbf{Error} & \textbf{Crash} & \textbf{Confirmed} & \textbf{Fixed} & \textbf{Waiting} \\
+%			\midrule
+%			MySQL      & 5 & 0 & 3 & 8 & 0 & 0 \\
+%			MariaDB    & 3 & 0 & 0 & 3 & 0 & 0 \\
+%			MonetDB    & 9 & 8 & 12 & 26 & 26 & 3 \\
+%			Percona    & 5 & 0 & 1 & 6 & 0 & 0 \\
+%			DuckDB     & 1 & 0 & 2 & 3 & 2 & 0 \\
+%			TiDB       & 2 & 0 & 0 & 2 & 0 & 0 \\
+%			\midrule
+%			Total      & 25 & 8 & 18 & 47 & 27 & 0 \\
+%			\bottomrule
+%		\end{tabular}
+%	}
+%	\vspace{-3mm}
+%\end{table}
     
 \textbf{Bug Importance.}
 Although anecdotal, developer feedback is an important indicator of an approach’s effectiveness and the significance of the bugs found. 
@@ -92,10 +118,10 @@ Among the confirmed bugs, all reported bugs in MariaDB were labeled as ``Major,'
 
 \textbf{Throughput.}
 We evaluate the efficiency of our test generation by measuring the number of test cases produced per second, where each test case consists of an original DML statement and its corresponding approximate variant. 
-Specifically, \toolname\ generates \textcolor{red}{xxx} test cases/sec for MySQL, \textcolor{red}{xxx} for MariaDB, \textcolor{red}{xxx} for MonetDB, \textcolor{red}{xxx} for Percona, \textcolor{red}{xxx} for DuckDB, and \textcolor{red}{xxx} for TiDB. 
-Beyond competitive throughput, \toolname\ also attains high execution success rates on most DBMSs, reaching \textcolor{red}{xxx}\% for MySQL, \textcolor{red}{xxx}\% for MariaDB, \textcolor{red}{xxx}\% for MonetDB, \textcolor{red}{xxx}\% for Percona, \textcolor{red}{xxx}\% for DuckDB, and \textcolor{red}{xxx}\% for TiDB.
+Specifically, \toolname\ generates 46.0 test cases/sec for MySQL, 54.8 for MariaDB, 48.4 for MonetDB, 51.6 for Percona, 44.7 for DuckDB, and 49.3 for TiDB. 
+Beyond competitive throughput, \toolname\ also attains high execution success rates on most DBMSs, reaching 93.8\% for MySQL, 93.6\% for MariaDB, 93.7\% for MonetDB, 92.3\% for Percona, 89.3\% for DuckDB, and 88.5\% for TiDB.
 We further measure the average complexity of generated statements using their size in bytes. 
-The average statement size is \textcolor{red}{xxx} bytes for MySQL, \textcolor{red}{xxx} for MariaDB, \textcolor{red}{xxx} for MonetDB, \textcolor{red}{xxx} for Percona, \textcolor{red}{xxx} for DuckDB, and \textcolor{red}{xxx} for TiDB. 
+The average statement size is 1,684 bytes for MySQL, 1,330 for MariaDB, 1,414 for MonetDB, 1,547 for Percona, 1,625 for DuckDB, and 1,482 for TiDB. 
 These results show that our structure-guided and constraint-aware generation strategy can efficiently produce a large volume of complex yet executable DML statements.
 
 % Query Generation  （参考 Dinkel）
@@ -106,16 +132,16 @@ These results show that our structure-guided and constraint-aware generation str
 %\label{sec:eval-diversity}
 
 \textbf{Bug Diversity.}
-We analyze the 21 confirmed logical bugs from two perspectives: the diversity of DML types and the structural complexity of the triggering statements. 
-In terms of DML types, the majority of bugs are caused by \texttt{UPDATE} statements (15/21), while the remaining involve \texttt{DELETE} (4/21) and \texttt{INSERT} (2/21), indicating that value-modifying operations are particularly error-prone. 
-From a structural perspective, most bugs are triggered by complex query constructs: 18 out of 21 bugs involve subqueries, 9 involve joins, 9 involve set operations, and 16 involve logic operators. 
+We analyze the \logical\ confirmed logical bugs from two perspectives: the diversity of DML types and the structural complexity of the triggering statements. 
+In terms of DML types, the majority of bugs are caused by \texttt{UPDATE} statements (15/25), while the remaining involve \texttt{DELETE} (7/25) and \texttt{INSERT} (3/25), indicating that value-modifying operations are particularly error-prone. 
+From a structural perspective, most bugs are triggered by complex query constructs: 22 out of 25 bugs involve subqueries, 9 involve joins, 12 involve set operations, and 16 involve logic operators. 
 These results show that DML logical bugs are highly correlated with rich query contexts and interactions among multiple SQL operators, rather than simple statements. 
 Such complexity poses a significant challenge to existing approaches like \textsc{DQE}, which are limited to relatively simple and aligned query patterns and cannot effectively support complex constructs such as nested subqueries and set operations. 
 In contrast, \toolname\ can systematically generate structurally rich DML statements and leverage state-relation-based oracles to robustly reason about their effects, enabling the detection of these complex and previously overlooked logical bugs.
 
 \begin{table}[t]
 	\centering
-	\vspace{-2mm}
+	\vspace{-3mm}
 	\caption{\textbf{Feature distribution of detected DML logical bugs.}}
 	\vspace{-3mm}
 	\label{tab:bug_pattern}
@@ -139,27 +165,32 @@ In contrast, \toolname\ can systematically generate structurally rich DML statem
 			10 & \texttt{MonetDB\#7888} & UPDATE & \xmark & \xmark & \xmark & \cmark \\
 			11 & \texttt{MonetDB\#7889} & DELETE & \cmark & \xmark & \cmark & \xmark \\
 			12 & \texttt{MonetDB\#7890} & INSERT & \cmark & \xmark & \cmark & \cmark \\
-			13 & \texttt{MonetDB\#7897} & DELETE & \cmark & \xmark & \cmark & \cmark \\
+			13 & \texttt{MonetDB\#7897} & DELETE & \cmark & \xmark & \cmark & \xmark \\
+			14 & \texttt{MonetDB\#7912} & INSERT & \cmark & \xmark & \xmark & \cmark \\
+			15 & \texttt{MonetDB\#7913} & DELETE & \cmark & \xmark & \cmark & \xmark \\
+			16 & \texttt{MonetDB\#7914} & DELETE & \cmark & \xmark & \cmark & \xmark \\
+			17 & \texttt{MonetDB\#7915} & DELETE & \cmark & \xmark & \cmark & \xmark \\
 			
-			14 & \texttt{Percona\#10877} & UPDATE & \cmark & \cmark & \xmark & \cmark \\
-			15 & \texttt{Percona\#10878} & UPDATE & \cmark & \cmark & \xmark & \cmark \\
-			16 & \texttt{Percona\#10879} & UPDATE & \cmark & \cmark & \cmark & \cmark \\
-			17 & \texttt{Percona\#10906} & UPDATE & \xmark & \cmark & \xmark & \cmark \\
-			18 & \texttt{Percona\#11008} & UPDATE & \cmark & \xmark & \xmark & \xmark \\
+			18 & \texttt{Percona\#10877} & UPDATE & \cmark & \cmark & \xmark & \cmark \\
+			19 & \texttt{Percona\#10878} & UPDATE & \cmark & \cmark & \xmark & \cmark \\
+			20 & \texttt{Percona\#10879} & UPDATE & \cmark & \cmark & \cmark & \cmark \\
+			21 & \texttt{Percona\#10906} & UPDATE & \xmark & \cmark & \xmark & \cmark \\
+			22 & \texttt{Percona\#11008} & UPDATE & \cmark & \xmark & \xmark & \xmark \\
 			
-			19 & \texttt{DuckDB\#21609} & INSERT & \cmark & \cmark & \xmark & \cmark \\
+			23 & \texttt{DuckDB\#21609} & INSERT & \cmark & \cmark & \xmark & \cmark \\
 			
-			20 & \texttt{TiDB\#67018} & UPDATE & \cmark & \xmark & \cmark & \xmark \\
-			21 & \texttt{TiDB\#67019} & DELETE & \cmark & \xmark & \cmark & \cmark \\
+			24 & \texttt{TiDB\#67018} & UPDATE & \cmark & \xmark & \cmark & \xmark \\
+			25 & \texttt{TiDB\#67019} & DELETE & \cmark & \xmark & \cmark & \cmark \\
 			
 			\bottomrule
 		\end{tabular}
 	}
-	\vspace{-4mm}
+	\vspace{-6mm}
 \end{table}
 
-\textbf{Case Study.}
-Due to space limitations, we present additional representative and interesting bug cases at \url{https://anonymous.4open.science/r/DMLScope-9F03/}. \lin{add a url and false positive}
+\textbf{Case Study and False Positive.}
+Due to space limitations, we present additional representative and interesting bug cases at \url{https://anonymous.4open.science/r/DMLScope-9F03/CaseStudy.md}.  
+In an early prototype, we observed several false positives caused by unstable DML execution semantics, which were eliminated after incorporating stability-aware state-effect extraction. 
 
 % RQ3：Comoporehensive Bug Analysis
 	% Bug Statements：Update、Delete、Insert (Rules) 一个大表  id，bug id，type，（rule），EET的feature
@@ -200,7 +231,7 @@ This highlights that \toolname\ explores a different and previously untested spa
 
 \begin{table}[t]
 	\centering
-%	\vspace{-2mm}
+	\vspace{-2mm}
 	\caption{\textbf{Number of logical bugs triggered in 24 hours.}}
 	\vspace{-3mm}
 	\small
@@ -212,12 +243,12 @@ This highlights that \toolname\ explores a different and previously untested spa
 			\midrule
 			MySQL    & 0 & - & 4 & 0 & 2 & 3 & 5 \\
 			MariaDB  & - & 0 & - & 0 & 1 & - & 3 \\
-			MonetDB  & - & - & - & - & - & - & 5 \\
+			MonetDB  & - & - & - & - & - & - & 9 \\
 			Percona  & - & - & - & - & - & - & 5 \\
 			DuckDB   & - & - & - & - & - & - & 1 \\
 			TiDB     & - & - & 2 & 0 & 0 & 0 & 2 \\
 			\midrule
-			\textbf{Total}     & 0 & 0 & 6 & 0 & 3 & 3 & 21 \\
+			\textbf{Total}     & 0 & 0 & 6 & 0 & 3 & 3 & 25 \\
 			\textbf{Increment} & 5 & 3 & 1 & 10 & 7 & 4 &  \\
 			\bottomrule
 		\end{tabular}

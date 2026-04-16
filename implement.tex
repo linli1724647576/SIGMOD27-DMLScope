@@ -1,7 +1,7 @@
 \subsection{Additional Implementation Details}
 \label{subsec:Implementation}
 
-We implemented \toolname\ as a prototype DBMS testing system in Python, consisting of \textcolor{red}{13,455} lines of code.
+We implemented \toolname\ as a prototype DBMS testing system in Python, consisting of 15,656 lines of code.
 To support mutation at the structural level, \toolname\ leverages \textsc{SQLGlot}~\cite{tobymao_sqlglot} to parse original DML statements into ASTs, enabling precise application of approximate mutators while preserving syntactic and semantic correctness.
 During testing, \toolname\ executes generated statements on target DBMSs and collects execution results for further analysis.
 To improve the usability of detected bugs, we adopt \textsc{SQLess}~\cite{lin2024sqless} to simplify failing cases and isolate their root causes, and further apply a deduplication strategy following \textsc{Pinolo}~\cite{hao2023pinolo} to eliminate redundant bug reports.

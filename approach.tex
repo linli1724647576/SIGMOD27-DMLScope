@@ -1,7 +1,7 @@
 \section{Approximate State-Relation–Driven Metamorphic Testing}
 \label{sec:asrmt}
 
-We now present \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (ASRMT), our core paradigm for detecting logical bugs in state-modifying SQL statements. 
+We now present \textit{\textbf{A}pproximate \textbf{S}tate-\textbf{R}elation–Driven \textbf{M}etamorphic \textbf{T}esting} (\textbf{ASRMT}), our core paradigm for detecting logical bugs in state-modifying SQL statements. 
 Unlike prior approximation-based techniques such as \textsc{Pinolo}~\cite{hao2023pinolo}, which reason about relations over query results, ASRMT defines correctness over database state transitions. 
 The key idea is to characterize DML semantics through state effects and to validate correctness by checking approximate relations between the effects of related statements. 
 In the following, we formalize state effects, define approximate state relations, and present the corresponding test oracle.
@@ -627,7 +627,7 @@ The statement is accepted only if it can be executed successfully on the current
 	\end{array}
 	\]
 	\vspace{-4mm}
-	\caption{\textbf{DML Syntax Supported by \toolname.} For brevity, low-level lexical elements, including identifiers, function symbols, and constants, are abstracted as \textit{id}, \textit{f}, and \textit{const}.}
+	\caption{\textbf{DML syntax supported by \toolname.} For brevity, low-level lexical elements, including identifiers, function symbols, and constants, are abstracted as \textit{id}, \textit{f}, and \textit{const}.}
 	\label{fig:dml-bnf-compact}
 	\vspace{-2mm}
 \end{figure}
@@ -644,7 +644,7 @@ As a result, the final original DML statement  is structurally complete, type-co
 	%	\vspace{-3mm}
 	\includegraphics[width=1\linewidth]{./images/DMLGeneration_example.pdf} 
 	\vspace{-7mm}
-	\caption{\textbf{Illustrative Example of Original DML Generation.}}
+	\caption{\textbf{Illustrative example of original DML generation.}}
 	\label{fig:dml generation}
 	\vspace{-2mm}
 \end{figure}
@@ -738,38 +738,38 @@ In particular, when the mutation site appears in direction-reversing contexts, s
 %		& \texttt{TRUE}
 %		& \(P\) \\
 		
-		& \(P \land Q\)
-		& \(P \lor Q\) \\
+		&  \(P \lor Q\)
+		& \(P \land Q\) \\
 		
-		& \texttt{JOIN ... ON } P
-		& \texttt{JOIN ... ON TRUE} \\
+		& \texttt{JOIN ... ON TRUE}
+		& \texttt{JOIN ... ON } P \\
 		
 		\midrule
 		
 		\multirow{4}{*}{Comparison}
-		& \(a > b\)
-		& \(a \ge b\) \\
+		& \(a \ge b\)
+		& \(a > b\) \\
 		
-		& \(a < b\)
-		& \(a \le b\) \\
+		& \(a \le b\)
+		& \(a < b\) \\
 		
-		& \(x\ \texttt{BETWEEN}\ l\ \texttt{AND}\ r\)
-		& \(x \ge l\) \\
+		& \(x \ge l\)
+		& \(x\ \texttt{BETWEEN}\ l\ \texttt{AND}\ r\) \\
 		
-%		& \(e\ \odot\ \texttt{ANY}(r)\)
-%		& \(e\ \odot\ \texttt{ALL}(r)\) \\
+%		& \(e\ \odot\ \texttt{ALL}(r)\)
+%		& \(e\ \odot\ \texttt{ANY}(r)\) \\
 		
 		\midrule
 		
 		\multirow{3}{*}{Join / Structure}
-		& \texttt{INNER JOIN}
-		& \texttt{LEFT JOIN} \\
+		& \texttt{LEFT JOIN}
+		& \texttt{INNER JOIN} \\
 		
-		& \texttt{HAVING } P
-		& \texttt{HAVING TRUE} \\
+		& \texttt{HAVING TRUE}
+		& \texttt{HAVING } P \\
 		
-		& \texttt{GROUP BY ... HAVING } P
-		& \texttt{GROUP BY ...} \\
+		& \texttt{GROUP BY ...}
+		& \texttt{GROUP BY ... HAVING } P \\
 		
 		\bottomrule
 	\end{tabular}
@@ -897,7 +897,7 @@ These tokens capture both row identity and value changes, yielding the state eff
 	%	\vspace{-3mm}
 	\includegraphics[width=1\linewidth]{./images/State-effect example.pdf} 
 	\vspace{-6mm}
-	\caption{\textbf{Illustrative Example of State-Effect Extraction.}}
+	\caption{\textbf{Illustrative example of state-effect extraction.}}
 	\label{fig:state_effect_example}
 	\vspace{-4mm}
 \end{figure}
